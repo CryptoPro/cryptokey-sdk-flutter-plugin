@@ -1,15 +1,17 @@
-# cpkey
+# cpkey (CryptoPro Key SDK Flutter Plugin)
 
-DSS SDK
+Flutter-плагин для интеграции с **КриптоПро Ключ (DSS SDK)** на платформах iOS и Android.
 
-## Getting Started
+---
 
-This project is a starting point for a Flutter
-[plug-in package](https://flutter.dev/to/develop-plugins),
-a specialized package that includes platform-specific implementation code for
-Android and/or iOS.
+## Подключение к проекту
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+Чтобы начать использовать плагин, добавьте его в ваш файл `pubspec.yaml`, указав ссылку на Git-репозиторий и необходимую версию (тег):
+
+```yaml
+dependencies:
+  cpkey:
+    git:
+      url: https://github.com/CryptoPro/cryptokey-sdk-flutter-plugin.git
+      ref: v0.0.1  # Укажите актуальную версию/тег
 
