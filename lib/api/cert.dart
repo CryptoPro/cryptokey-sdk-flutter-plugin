@@ -10,4 +10,24 @@ class Cert {
   Future<void> deleteCert(DeleteCertRequest request) async {
     return await _hostApi.deleteCert(request);
   }
+
+  Future<DSSCertificate> getCert(GetCertRequest request) async {
+    return await _hostApi.getCert(request);
+  }
+
+  Future<DSSCertificate> getClientCert(GetCertRequest request) async {
+    return await _hostApi.getClientCert(request);
+  }
+
+  Future<SignRequestResult> signRequest(SignRequestRequest request) async {
+    return await _hostApi.signRequest(request);
+  }
+
+  Future<DSSCertificate> sendSignRequest(SendSignRequestRequest request) async {
+    return await _hostApi.sendSignRequest(request);
+  }
+
+  Future<void> installCertificate(InstallCertificateRequest request) async {
+    return await _hostApi.installCertificate(request);
+  }
 }

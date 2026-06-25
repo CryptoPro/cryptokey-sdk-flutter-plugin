@@ -6,13 +6,6 @@ buildscript {
     repositories {
         google()
         mavenCentral()
-        maven {
-            url = uri("https://repo.cryptopro.ru/repo/repository/cloud-maven-snapshot/")
-            credentials {
-                username = "android-release-reader"
-                password = "1qaz@WSX"
-            }
-        }
     }
 
     dependencies {
@@ -25,20 +18,13 @@ allprojects {
     repositories {
         google()
         mavenCentral()
-        maven {
-            url = uri("https://repo.cryptopro.ru/repo/repository/cloud-maven-snapshot/")
-            credentials {
-                username = "android-release-reader"
-                password = "1qaz@WSX"
-            }
-        }
     }
 }
 
 plugins {
     id("com.android.library")
     id("kotlin-android")
-
+    id("org.jetbrains.kotlin.plugin.serialization") version "2.4.0"
 }
 
 android {
@@ -98,5 +84,5 @@ dependencies {
     implementation("ru.cprocsp:JInitCSP:$csp_version")
     implementation("ru.cprocsp:SharedLibrary:$csp_version")
     implementation("ru.cryptopro:dssclient-token:${dss_sdk_remote_version}")
-
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
 }

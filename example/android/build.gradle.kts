@@ -1,3 +1,12 @@
+import java.util.Properties
+
+val localProps = Properties().apply {
+    val f = file("local.properties")
+    if (f.isFile) {
+        f.inputStream().use(::load)
+    }
+}
+
 allprojects {
     repositories {
         google()
@@ -5,8 +14,9 @@ allprojects {
         maven {
             url = uri("https://repo.cryptopro.ru/repo/repository/cloud-maven-snapshot/")
             credentials {
-                username = "android-release-reader"
-                password = "1qaz@WSX"
+                username = localProps.getProperty("cryptopro_artifactory_user", "")
+                    ?: error("cryptopro_artifactory_user not found in local.properties")
+                password = localProps.getProperty("cryptopro_artifactory_password", "")
             }
         }
     }

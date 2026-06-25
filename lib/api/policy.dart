@@ -12,4 +12,9 @@ class Policy {
     final response = await _hostApi.getOperations(request);
     return response;
   }
+
+  Future<DssCaParams> getCaParams(String kid) async {
+    final response = await _hostApi.getCaParams(kid);
+    return response;
+  }
 }

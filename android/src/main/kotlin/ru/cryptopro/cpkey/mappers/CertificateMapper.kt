@@ -1,7 +1,12 @@
 package ru.cryptopro.cpkey.mappers
 
+import CryptoProviderInfo
 import DSSCertificate
+import DSSCryptoKeyContainerType
+import FlutterError
 import ru.cryptopro.cryptokey.presentation.external.cert.models.Certificate
+import ru.cryptopro.cryptokey.presentation.external.cert.models.KeyContainerType
+import ru.cryptopro.cryptokey.presentation.external.cert.models.ProviderInfo
 
 fun Certificate.toPigeonModel(): DSSCertificate {
     val mappedStorageTypes = this.getAllowedStorageTypes().map { typeInt ->
@@ -15,8 +20,12 @@ fun Certificate.toPigeonModel(): DSSCertificate {
 
     return DSSCertificate(
         type = this.type ?: "crt",
-        cid = this.cid.toString(), // Приводим Int к String для унификации с iOS
-        rid = this.rid.toString(), // Приводим Int к String для унификации с iOS
+        cid = if (this.cid == 0) {
+            null
+        } else this.cid.toString(), // Приводим Int к String для унификации с iOS
+        rid = if (this.rid == 0) {
+            null
+        } else this.rid.toString(), // Приводим Int к String для унификации с iOS
         content = this.content ?: "",
         caId = this.caId.toLong(),
         dn = this.dn as Map<String?, String?>?,
@@ -33,4 +42,30 @@ fun Certificate.toPigeonModel(): DSSCertificate {
         isLocked = this.isLocked,
         allowedStorageTypes = mappedStorageTypes
     )
+}
+
+fun CryptoProviderInfo.toNative(): ProviderInfo {
+    return ProviderInfo(
+        containerName = containerName,
+        fullContainerName = fullContainerName,
+        provType = provType.toInt(),
+        provName = provName,
+        keyContainerType = keyContainerType.mapKeyContainerTypeToNative(),
+        isExportable = isExportable.toInt(),
+        puk = puk,
+        pin = pin ?: "",
+        savePin = savePin,
+    )
+}
+
+private fun DSSCryptoKeyContainerType.mapKeyContainerTypeToNative(): KeyContainerType {
+    return when (this) {
+        DSSCryptoKeyContainerType.DEVICE -> KeyContainerType.DEVICE
+        DSSCryptoKeyContainerType.RUTOKEN -> KeyContainerType.TOKEN_FKN
+        DSSCryptoKeyContainerType.RUTOKEN_PKCS11 -> KeyContainerType.TOKEN_PKCS11
+        DSSCryptoKeyContainerType.DISTRIBUTED -> KeyContainerType.DISTRIBUTED
+        else -> {
+            throw FlutterError("Unknown key container type")
+        }
+    }
 }

@@ -21,7 +21,7 @@ class StartScreen extends StatelessWidget {
           // listener отвечает за побочные эффекты (диалоги, навигацию, снэкбары)
           listener: (context, state) {
             if (state is ShowError) {
-              context.showErrorDialog(state.message);
+              context.showInfoDialog(state.message);
             }
           },
           // builder отвечает ТОЛЬКО за отрисовку интерфейса
@@ -68,10 +68,9 @@ class StartScreen extends StatelessWidget {
                   const SizedBox(height: 40),
                   ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 40,
-                        vertical: 15,
-                      ),
+                      backgroundColor: Colors.blueAccent,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 15),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
                       ),
@@ -80,9 +79,12 @@ class StartScreen extends StatelessWidget {
                       // Отправляем событие проверки статуса в BLoC
                       context.read<StartBloc>().add(Initialization());
                     },
-                    child: const Text(
-                      'Открыть Демо(init + initBioRng)',
-                      style: TextStyle(fontSize: 16),
+                    child: const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 10),
+                      child: Text(
+                        'Открыть Демо(init + initBioRng)',
+                        style: TextStyle(fontSize: 16),
+                      ),
                     ),
                   ),
                 ],

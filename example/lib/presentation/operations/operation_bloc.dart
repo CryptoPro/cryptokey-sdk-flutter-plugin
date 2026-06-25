@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:cpkey/CpKeyPlugin.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
@@ -23,7 +25,15 @@ class OperationsBloc extends Bloc<OperationsEvent, OperationsState> {
     });
 
     on<OpenOperation>((event, emit) async {
-      //await CpKeyPlugin.sign
+      final result = await CpKeyPlugin.sign.signMt(
+        activeUser!.kid!,
+        event.operation,
+        false,
+        DssConfirmationSendingMode.online,
+        null,
+        false,
+      );
+      emit(OperationSuccess(result));
     });
   }
 }
@@ -48,4 +58,10 @@ class OperationsLoaded extends OperationsState {
   final List<DssOperation> operations;
 
   OperationsLoaded(this.operations);
+}
+
+class OperationSuccess extends OperationsState {
+  final DssSignMtResult result;
+
+  OperationSuccess(this.result);
 }

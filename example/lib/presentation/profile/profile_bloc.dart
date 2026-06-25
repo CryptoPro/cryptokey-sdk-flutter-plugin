@@ -8,19 +8,26 @@ import '../../navigation/navigation_service.dart';
 @injectable
 class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
   final NavigationService _navigationService;
+  DssUser? activeUser;
 
   ProfileBloc(this._navigationService) : super(ProfileInitial()) {
     on<LoadProfile>((event, emit) async {
       emit(ProfileLoading());
       final users = await CpKeyPlugin.auth.getAuthList();
-      emit(
-        ProfileLoaded(
-          user: users.first,
-        ),
-      );
+      activeUser = users
+          .where((element) => element.state?.toUpperCase() == 'ACTIVE')
+          .firstOrNull;
+      emit(ProfileLoaded(user: activeUser!));
     });
 
-    on<LogoutRequested>((event, emit) {
+    on<LogoutRequested>((event, emit) async {
+      await CpKeyPlugin.auth.removeAuth(
+        RemoveAuthRequest(
+          kid: activeUser!.kid!,
+          deletedKid: activeUser!.kid!,
+          forceDelete: true,
+        ),
+      );
       _navigationService.replaceWith(AppRoutes.auth);
     });
   }

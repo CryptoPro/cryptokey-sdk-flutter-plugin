@@ -1,4 +1,3 @@
-import 'dart:ffi';
 
 import '../CpKeyPlugin.dart';
 
@@ -19,6 +18,10 @@ class Auth {
 
   Future<void> verifyDevice(String kid, bool silent) async {
     return await _hostApi.verifyDevice(kid, silent);
+  }
+
+  Future<void> removeAuth(RemoveAuthRequest request) async {
+    return await _hostApi.removeAuth(request);
   }
 
   Future<String> kinit(

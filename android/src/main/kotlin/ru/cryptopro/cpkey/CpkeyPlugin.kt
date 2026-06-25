@@ -8,6 +8,8 @@ import ru.cryptopro.cpkey.impl.AuthHostApiImpl
 import ru.cryptopro.cpkey.impl.CertHostApiImpl
 import ru.cryptopro.cpkey.impl.CryptoProDssHostApiImpl
 import ru.cryptopro.cpkey.impl.PolicyHostApiImpl
+import ru.cryptopro.cpkey.impl.SignHostApiImpl
+import ru.cryptopro.cpkey.impl.SigningKeyHostApiImpl
 
 class CpkeyPlugin : FlutterPlugin, MethodCallHandler {
 
@@ -16,6 +18,8 @@ class CpkeyPlugin : FlutterPlugin, MethodCallHandler {
     private var authHostApiImpl: AuthHostApiImpl? = null
     private var policyHostApiImpl: PolicyHostApiImpl? = null
     private var certHostApiImpl: CertHostApiImpl? = null
+    private var signHostApiImpl: SignHostApiImpl? = null
+    private var signingKeyHostApiImpl: SigningKeyHostApiImpl? = null
 
     override fun onAttachedToEngine(flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
         channel = MethodChannel(flutterPluginBinding.binaryMessenger, "cpkey")
@@ -26,11 +30,15 @@ class CpkeyPlugin : FlutterPlugin, MethodCallHandler {
         authHostApiImpl = AuthHostApiImpl(context)
         policyHostApiImpl = PolicyHostApiImpl(context)
         certHostApiImpl = CertHostApiImpl(context)
+        signHostApiImpl = SignHostApiImpl(context)
+        signingKeyHostApiImpl = SigningKeyHostApiImpl(context)
 
         CryptoProDssHostApi.setUp(flutterPluginBinding.binaryMessenger, cryptoProDssHostApiImpl)
         AuthHostApi.setUp(flutterPluginBinding.binaryMessenger, authHostApiImpl)
         PolicyHostApi.setUp(flutterPluginBinding.binaryMessenger, policyHostApiImpl)
         CertHostApi.setUp(flutterPluginBinding.binaryMessenger, certHostApiImpl)
+        SignHostApi.setUp(flutterPluginBinding.binaryMessenger, signHostApiImpl)
+        SigningKeyHostApi.setUp(flutterPluginBinding.binaryMessenger, signingKeyHostApiImpl)
     }
 
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
@@ -51,5 +59,7 @@ class CpkeyPlugin : FlutterPlugin, MethodCallHandler {
         authHostApiImpl = null
         policyHostApiImpl = null
         certHostApiImpl = null
+        signHostApiImpl = null
+        signingKeyHostApiImpl = null
     }
 }

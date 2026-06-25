@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../di/injection.dart';
+import '../keys/keys_screen.dart';
 import '../operations/operations_screen.dart';
 import '../cert/cert_screen.dart';
 import '../profile/profile_screen.dart';
@@ -10,18 +11,18 @@ import 'main_bloc.dart';
 class MainScreen extends StatelessWidget {
   const MainScreen({super.key});
 
-  // Список дочерних экранов
   final List<Widget> _screens = const [
     OperationsScreen(),
     CertScreen(),
     ProfileScreen(),
+    KeysScreen(),
   ];
 
-  // Заголовки для AppBar в зависимости от выбранного таба
   final List<String> _titles = const [
-    'Список операций',
-    'Мои сертификаты',
-    'Профиль пользователя',
+    'Операции(Policy.getOperations)',
+    'Сертификаты(Cert.getCertList)',
+    'Профиль(Auth.getAuthList)',
+    'Ключи(SigningKey.getListKeys)',
   ];
 
   @override
@@ -37,10 +38,7 @@ class MainScreen extends StatelessWidget {
               centerTitle: true,
               elevation: 2,
             ),
-            body: IndexedStack(
-              index: state.currentIndex,
-              children: _screens,
-            ),
+              body: _screens[state.currentIndex],
             bottomNavigationBar: BottomNavigationBar(
               currentIndex: state.currentIndex,
               onTap: (index) {
@@ -63,6 +61,11 @@ class MainScreen extends StatelessWidget {
                   icon: Icon(Icons.person_outline),
                   activeIcon: Icon(Icons.person),
                   label: 'Профиль',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.key),
+                  activeIcon: Icon(Icons.key_sharp),
+                  label: 'Ключи',
                 ),
               ],
             ),

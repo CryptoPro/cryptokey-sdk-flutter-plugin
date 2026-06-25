@@ -96,10 +96,39 @@ enum DSSDeviceType: Int {
 
 enum DSSCryptoKeyContainerType: Int {
   case unknown = 0
-  case device = 1
-  case rutoken = 2
-  case rutokenPKCS11 = 3
-  case distributed = 4
+  case cloud = 1
+  case device = 2
+  case rutoken = 3
+  case rutokenPKCS11 = 4
+  case distributed = 5
+}
+
+/// Режим отправки подтверждения операции
+enum DssConfirmationSendingMode: Int {
+  /// Сформированный запрос с подтверждением SDK сразу отправляет на сервер
+  case online = 0
+  /// Приложение сохраняет запрос для возможности отправить его позднее
+  case offline = 1
+}
+
+/// Результат подтверждения операции
+enum DssConfirmState: Int {
+  /// Неизвестно
+  case unknown = 0
+  /// Подтверждено
+  case confirmed = 1
+  /// Отклонено
+  case declined = 2
+}
+
+/// Тип результата операции signMT
+enum DssSignMtResultType: Int {
+  /// Полное подтверждение всех документов
+  case success = 0
+  /// Частичное подтверждение (некоторые документы не подтверждены)
+  case partialSuccess = 1
+  /// Отложенное подписание
+  case suspendedConfirm = 2
 }
 
 /// Generated class from Pigeon that represents data sent in messages.
@@ -389,6 +418,42 @@ struct ScanQrResult {
 }
 
 /// Generated class from Pigeon that represents data sent in messages.
+struct RemoveAuthRequest {
+  var kid: String
+  var deletedKid: String
+  var forceDelete: Bool
+  var onlyLocal: Bool? = nil
+  var silent: Bool? = nil
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> RemoveAuthRequest? {
+    let kid = pigeonVar_list[0] as! String
+    let deletedKid = pigeonVar_list[1] as! String
+    let forceDelete = pigeonVar_list[2] as! Bool
+    let onlyLocal: Bool? = nilOrValue(pigeonVar_list[3])
+    let silent: Bool? = nilOrValue(pigeonVar_list[4])
+
+    return RemoveAuthRequest(
+      kid: kid,
+      deletedKid: deletedKid,
+      forceDelete: forceDelete,
+      onlyLocal: onlyLocal,
+      silent: silent
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      kid,
+      deletedKid,
+      forceDelete,
+      onlyLocal,
+      silent,
+    ]
+  }
+}
+
+/// Generated class from Pigeon that represents data sent in messages.
 struct DssKeyProtectionFlags {
   var fingerprintRequired: Bool? = nil
   var collectEvents: Bool? = nil
@@ -613,28 +678,80 @@ struct DssOperationDescription {
   }
 }
 
-/// Сведения о документе в операции
+/// Сведения о документе
 ///
 /// Generated class from Pigeon that represents data sent in messages.
 struct DssDocument {
-  var id: String? = nil
-  var name: String? = nil
+  /// Идентификатор документа в Сервисе Обработки Документов
+  var id: String
+  /// Имя документа
+  var title: String
+  /// Хэш-значение от документа
+  var hash: String
+  /// Краткая информация о документе (html)
+  var snippet: String? = nil
+  /// Хэш-значение от краткой информации о документе
+  var snippetHash: String? = nil
+  /// Размер документа в байтах
+  var fileSize: Int64
+  /// Количество страниц в документе
+  var pageCount: Int64
+  /// Флаг доступности печатной формы документа
+  var isPrintableViewAvailable: Bool
+  /// Флаг доступности краткой информации о документе
+  var isSnippetViewAvailable: Bool
+  /// Флаг доступности полной PDF-версии документа
+  var isRawViewAvailable: Bool
+  /// Порядковый номер документа в списке (Только iOS)
+  var order: Int64? = nil
+  /// Содержимое файла в виде массива байт (используется для офлайн-подписи, только Android)
+  var fileBytes: FlutterStandardTypedData? = nil
 
 
   // swift-format-ignore: AlwaysUseLowerCamelCase
   static func fromList(_ pigeonVar_list: [Any?]) -> DssDocument? {
-    let id: String? = nilOrValue(pigeonVar_list[0])
-    let name: String? = nilOrValue(pigeonVar_list[1])
+    let id = pigeonVar_list[0] as! String
+    let title = pigeonVar_list[1] as! String
+    let hash = pigeonVar_list[2] as! String
+    let snippet: String? = nilOrValue(pigeonVar_list[3])
+    let snippetHash: String? = nilOrValue(pigeonVar_list[4])
+    let fileSize = pigeonVar_list[5] as! Int64
+    let pageCount = pigeonVar_list[6] as! Int64
+    let isPrintableViewAvailable = pigeonVar_list[7] as! Bool
+    let isSnippetViewAvailable = pigeonVar_list[8] as! Bool
+    let isRawViewAvailable = pigeonVar_list[9] as! Bool
+    let order: Int64? = nilOrValue(pigeonVar_list[10])
+    let fileBytes: FlutterStandardTypedData? = nilOrValue(pigeonVar_list[11])
 
     return DssDocument(
       id: id,
-      name: name
+      title: title,
+      hash: hash,
+      snippet: snippet,
+      snippetHash: snippetHash,
+      fileSize: fileSize,
+      pageCount: pageCount,
+      isPrintableViewAvailable: isPrintableViewAvailable,
+      isSnippetViewAvailable: isSnippetViewAvailable,
+      isRawViewAvailable: isRawViewAvailable,
+      order: order,
+      fileBytes: fileBytes
     )
   }
   func toList() -> [Any?] {
     return [
       id,
-      name,
+      title,
+      hash,
+      snippet,
+      snippetHash,
+      fileSize,
+      pageCount,
+      isPrintableViewAvailable,
+      isSnippetViewAvailable,
+      isRawViewAvailable,
+      order,
+      fileBytes,
     ]
   }
 }
@@ -807,6 +924,358 @@ struct DssOperationsInfo {
   }
 }
 
+/// Сведения о криптопровайдере
+///
+/// Generated class from Pigeon that represents data sent in messages.
+struct DssCryptoProviderInfo {
+  /// Тип криптопровайдера
+  var provType: Int64
+  /// Имя криптопровайдера
+  var provName: String
+  /// Приоритет криптопровайдера (Android)
+  var priority: Int64? = nil
+  /// Имя ключевого контейнера (iOS)
+  var containerName: String? = nil
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> DssCryptoProviderInfo? {
+    let provType = pigeonVar_list[0] as! Int64
+    let provName = pigeonVar_list[1] as! String
+    let priority: Int64? = nilOrValue(pigeonVar_list[2])
+    let containerName: String? = nilOrValue(pigeonVar_list[3])
+
+    return DssCryptoProviderInfo(
+      provType: provType,
+      provName: provName,
+      priority: priority,
+      containerName: containerName
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      provType,
+      provName,
+      priority,
+      containerName,
+    ]
+  }
+}
+
+/// Политика расширений
+///
+/// Generated class from Pigeon that represents data sent in messages.
+struct DssExtensionsPolicy {
+  /// Объектный идентификатор расширения
+  var oid: String
+  /// Значение расширения
+  var value: String
+  /// Флаг, указывающий, является ли данное расширение критичным
+  var critical: Bool
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> DssExtensionsPolicy? {
+    let oid = pigeonVar_list[0] as! String
+    let value = pigeonVar_list[1] as! String
+    let critical = pigeonVar_list[2] as! Bool
+
+    return DssExtensionsPolicy(
+      oid: oid,
+      value: value,
+      critical: critical
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      oid,
+      value,
+      critical,
+    ]
+  }
+}
+
+/// Политика имени пользователя
+///
+/// Generated class from Pigeon that represents data sent in messages.
+struct DssNamePolicy {
+  /// Требуется ли обязательно заполнять данный компонент имени
+  var isRequired: Bool
+  /// Порядковый номер в списке компонентов имени
+  var order: Int64
+  /// Объектный идентификатор компонента имени
+  var oid: String
+  /// Отображаемое имя компонента имени
+  var name: String
+  /// Значение компонента имени
+  var value: String? = nil
+  /// Строковый идентификатор компонента имени
+  var stringIdentifier: String
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> DssNamePolicy? {
+    let isRequired = pigeonVar_list[0] as! Bool
+    let order = pigeonVar_list[1] as! Int64
+    let oid = pigeonVar_list[2] as! String
+    let name = pigeonVar_list[3] as! String
+    let value: String? = nilOrValue(pigeonVar_list[4])
+    let stringIdentifier = pigeonVar_list[5] as! String
+
+    return DssNamePolicy(
+      isRequired: isRequired,
+      order: order,
+      oid: oid,
+      name: name,
+      value: value,
+      stringIdentifier: stringIdentifier
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      isRequired,
+      order,
+      oid,
+      name,
+      value,
+      stringIdentifier,
+    ]
+  }
+}
+
+/// Сведения о шаблоне подписи
+///
+/// Generated class from Pigeon that represents data sent in messages.
+struct DssProcessingTemplate {
+  /// Идентификатор шаблона подписи
+  var id: Int64
+  /// Описание шаблона подписи
+  var description: String
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> DssProcessingTemplate? {
+    let id = pigeonVar_list[0] as! Int64
+    let description = pigeonVar_list[1] as! String
+
+    return DssProcessingTemplate(
+      id: id,
+      description: description
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      id,
+      description,
+    ]
+  }
+}
+
+/// Политика обработки запросов на сертификат
+///
+/// Generated class from Pigeon that represents data sent in messages.
+struct DssCaPolicy {
+  /// Идентификатор обработчика запросов на сертификат
+  var id: Int64
+  /// Отображаемое имя обработчика запросов на сертификат
+  var name: String? = nil
+  /// Доступен ли УЦ для создания запросов
+  var active: Bool
+  /// Разрешить подпись запросов на сертификат действующим ключом Пользователя
+  var allowUserMode: Bool
+  /// Разрешить изменять имя субъекта в сертификате
+  var snChangesEnable: Bool
+  /// Массив компонентов различительного имени пользователя
+  var namePolicy: [DssNamePolicy]
+  /// Тип обработчика запросов на сертификат
+  /// (CryptoProCA15Enroll, CryptoProCA20Enroll, DSSOutOfBandEnroll)
+  var caType: String? = nil
+  /// Режим получения статуса сертификата
+  /// (CertificateAuthority, ChainOnline, ChainOffline, NoCheck, OCSP)
+  var validationMode: String? = nil
+  /// Отображается ли обработчик в веб-интерфейсе (Android)
+  var showInUI: Bool? = nil
+  /// Политики расширений
+  var extensionsPolicy: [DssExtensionsPolicy]? = nil
+  /// Массив шаблонов сертификатов (ключ — имя шаблона, значение — список OID)
+  var ekuTemplates: [String: Any]? = nil
+  /// Массив сведений о криптопровайдерах (ключ — тип, значение — список провайдеров)
+  var cryptoProviderInfos: [String: Any]? = nil
+  /// Список поддерживаемых сценариев (Goskey, Renew) (Android)
+  var supportedFlows: [String]? = nil
+  /// Адрес сервиса модуля дистанционной идентификации (Android)
+  var mdipServiceAddress: String? = nil
+  /// Предпочтительный идентификатор обработчика (Android)
+  var mdipPreferedEnrollId: String? = nil
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> DssCaPolicy? {
+    let id = pigeonVar_list[0] as! Int64
+    let name: String? = nilOrValue(pigeonVar_list[1])
+    let active = pigeonVar_list[2] as! Bool
+    let allowUserMode = pigeonVar_list[3] as! Bool
+    let snChangesEnable = pigeonVar_list[4] as! Bool
+    let namePolicy = pigeonVar_list[5] as! [DssNamePolicy]
+    let caType: String? = nilOrValue(pigeonVar_list[6])
+    let validationMode: String? = nilOrValue(pigeonVar_list[7])
+    let showInUI: Bool? = nilOrValue(pigeonVar_list[8])
+    let extensionsPolicy: [DssExtensionsPolicy]? = nilOrValue(pigeonVar_list[9])
+    let ekuTemplates: [String: Any]? = nilOrValue(pigeonVar_list[10])
+    let cryptoProviderInfos: [String: Any]? = nilOrValue(pigeonVar_list[11])
+    let supportedFlows: [String]? = nilOrValue(pigeonVar_list[12])
+    let mdipServiceAddress: String? = nilOrValue(pigeonVar_list[13])
+    let mdipPreferedEnrollId: String? = nilOrValue(pigeonVar_list[14])
+
+    return DssCaPolicy(
+      id: id,
+      name: name,
+      active: active,
+      allowUserMode: allowUserMode,
+      snChangesEnable: snChangesEnable,
+      namePolicy: namePolicy,
+      caType: caType,
+      validationMode: validationMode,
+      showInUI: showInUI,
+      extensionsPolicy: extensionsPolicy,
+      ekuTemplates: ekuTemplates,
+      cryptoProviderInfos: cryptoProviderInfos,
+      supportedFlows: supportedFlows,
+      mdipServiceAddress: mdipServiceAddress,
+      mdipPreferedEnrollId: mdipPreferedEnrollId
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      id,
+      name,
+      active,
+      allowUserMode,
+      snChangesEnable,
+      namePolicy,
+      caType,
+      validationMode,
+      showInUI,
+      extensionsPolicy,
+      ekuTemplates,
+      cryptoProviderInfos,
+      supportedFlows,
+      mdipServiceAddress,
+      mdipPreferedEnrollId,
+    ]
+  }
+}
+
+/// Параметры подписи (политика взаимодействия с Сервисом Подписи)
+///
+/// Generated class from Pigeon that represents data sent in messages.
+struct DssCaParams {
+  /// Массив политик обработки запросов на сертификат
+  var caPolicies: [DssCaPolicy]
+  /// Массив шаблонов подписи
+  var processingTemplates: [DssProcessingTemplate]
+  /// Разрешено ли создание ключей на мобильном устройстве
+  var isMobileKeysSupported: Bool? = nil
+  /// Разрешено ли создание распределённых ключей
+  var isDskKeysSupported: Bool? = nil
+  /// Разрешено ли создание распределённых ключей
+  var isServerKeysSupported: Bool? = nil
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> DssCaParams? {
+    let caPolicies = pigeonVar_list[0] as! [DssCaPolicy]
+    let processingTemplates = pigeonVar_list[1] as! [DssProcessingTemplate]
+    let isMobileKeysSupported: Bool? = nilOrValue(pigeonVar_list[2])
+    let isDskKeysSupported: Bool? = nilOrValue(pigeonVar_list[3])
+    let isServerKeysSupported: Bool? = nilOrValue(pigeonVar_list[4])
+
+    return DssCaParams(
+      caPolicies: caPolicies,
+      processingTemplates: processingTemplates,
+      isMobileKeysSupported: isMobileKeysSupported,
+      isDskKeysSupported: isDskKeysSupported,
+      isServerKeysSupported: isServerKeysSupported
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      caPolicies,
+      processingTemplates,
+      isMobileKeysSupported,
+      isDskKeysSupported,
+      isServerKeysSupported,
+    ]
+  }
+}
+
+/// Сведения о криптопровайдере
+///
+/// Generated class from Pigeon that represents data sent in messages.
+struct CryptoProviderInfo {
+  /// Имя ключевого контейнера
+  var containerName: String
+  /// Полное имя ключевого контейнера (только Android)
+  var fullContainerName: String? = nil
+  /// Тип криптопровайдера (по умолчанию 80)
+  var provType: Int64
+  /// Имя криптопровайдера
+  var provName: String? = nil
+  /// Тип ключевого контейнера
+  var keyContainerType: DSSCryptoKeyContainerType
+  /// Флаг экспортируемости ключа. По умолчанию 0 (неэкспортируемый).
+  /// Только Android.
+  var isExportable: Int64
+  /// PUK-код внешнего носителя (если ключ будет сохранен на нем).
+  /// Только Android.
+  var puk: String? = nil
+  /// PIN-код внешнего носителя (если ключ будет сохранен на нем).
+  /// Только Android.
+  var pin: String? = nil
+  /// Сохранять PIN-код внешнего носителя на время действия сессии.
+  /// По умолчанию false. Только Android.
+  var savePin: Bool
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> CryptoProviderInfo? {
+    let containerName = pigeonVar_list[0] as! String
+    let fullContainerName: String? = nilOrValue(pigeonVar_list[1])
+    let provType = pigeonVar_list[2] as! Int64
+    let provName: String? = nilOrValue(pigeonVar_list[3])
+    let keyContainerType = pigeonVar_list[4] as! DSSCryptoKeyContainerType
+    let isExportable = pigeonVar_list[5] as! Int64
+    let puk: String? = nilOrValue(pigeonVar_list[6])
+    let pin: String? = nilOrValue(pigeonVar_list[7])
+    let savePin = pigeonVar_list[8] as! Bool
+
+    return CryptoProviderInfo(
+      containerName: containerName,
+      fullContainerName: fullContainerName,
+      provType: provType,
+      provName: provName,
+      keyContainerType: keyContainerType,
+      isExportable: isExportable,
+      puk: puk,
+      pin: pin,
+      savePin: savePin
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      containerName,
+      fullContainerName,
+      provType,
+      provName,
+      keyContainerType,
+      isExportable,
+      puk,
+      pin,
+      savePin,
+    ]
+  }
+}
+
 /// Generated class from Pigeon that represents data sent in messages.
 struct DSSCertificate {
   /// Тип объекта: 'crt' - сертификат, 'req' - запрос на сертификат
@@ -961,6 +1430,532 @@ struct DeleteCertRequest {
   }
 }
 
+/// Параметры для создания запроса на сертификат (серверный ключ / распределённый)
+///
+/// Generated class from Pigeon that represents data sent in messages.
+struct GetCertRequest {
+  /// Идентификатор набора ключей пользователя
+  var kid: String
+  /// Идентификатор обработчика УЦ
+  var caId: Int64
+  /// Идентификатор шаблона сертификата
+  var tId: String
+  /// Различительное имя субъекта: {"OID компонента имени": "Значение компонента имени"}
+  var dn: [String: String]
+  /// Дополнительные параметры запроса на сертификат (iOS: reqParams)
+  var reqParams: [String: String]? = nil
+  /// Флаг для скрытия/отображения диалоговых окон SDK (iOS only, silent mode)
+  var silent: Bool? = nil
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> GetCertRequest? {
+    let kid = pigeonVar_list[0] as! String
+    let caId = pigeonVar_list[1] as! Int64
+    let tId = pigeonVar_list[2] as! String
+    let dn = pigeonVar_list[3] as! [String: String]
+    let reqParams: [String: String]? = nilOrValue(pigeonVar_list[4])
+    let silent: Bool? = nilOrValue(pigeonVar_list[5])
+
+    return GetCertRequest(
+      kid: kid,
+      caId: caId,
+      tId: tId,
+      dn: dn,
+      reqParams: reqParams,
+      silent: silent
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      kid,
+      caId,
+      tId,
+      dn,
+      reqParams,
+      silent,
+    ]
+  }
+}
+
+/// Учётные данные для криптопровайдера (внешний носитель)
+/// iOS: DSSCryptoProviderInfoCreds
+///
+/// Generated class from Pigeon that represents data sent in messages.
+struct CryptoProviderCreds {
+  /// ПИН-код внешнего носителя / ПИН-код на контейнер сертификата
+  var pin: String? = nil
+  /// Код инициализации внешнего носителя
+  var puk: String? = nil
+  /// Доступность ввода учетных данных в silent-режиме (True — только для УНЭП)
+  var isSilent: Bool? = nil
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> CryptoProviderCreds? {
+    let pin: String? = nilOrValue(pigeonVar_list[0])
+    let puk: String? = nilOrValue(pigeonVar_list[1])
+    let isSilent: Bool? = nilOrValue(pigeonVar_list[2])
+
+    return CryptoProviderCreds(
+      pin: pin,
+      puk: puk,
+      isSilent: isSilent
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      pin,
+      puk,
+      isSilent,
+    ]
+  }
+}
+
+/// Параметры для подписания запроса на сертификат
+///
+/// Generated class from Pigeon that represents data sent in messages.
+struct SignRequestRequest {
+  /// Идентификатор набора ключей пользователя
+  var kid: String
+  /// Сведения о созданном неподписанном запросе на сертификат
+  var certificate: DSSCertificate
+  /// Сведения о криптопровайдере
+  var providerInfo: CryptoProviderInfo? = nil
+  /// Учётные данные для криптопровайдера (pin, puk, isSilent)
+  /// Android: pin передаётся отдельно; iOS: DSSCryptoProviderInfoCreds
+  var creds: CryptoProviderCreds? = nil
+  /// Флаг для скрытия/отображения диалоговых окон SDK (silent mode).
+  /// Используется только для создания УНЭП. Не используется по умолчанию.
+  var silent: Bool? = nil
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> SignRequestRequest? {
+    let kid = pigeonVar_list[0] as! String
+    let certificate = pigeonVar_list[1] as! DSSCertificate
+    let providerInfo: CryptoProviderInfo? = nilOrValue(pigeonVar_list[2])
+    let creds: CryptoProviderCreds? = nilOrValue(pigeonVar_list[3])
+    let silent: Bool? = nilOrValue(pigeonVar_list[4])
+
+    return SignRequestRequest(
+      kid: kid,
+      certificate: certificate,
+      providerInfo: providerInfo,
+      creds: creds,
+      silent: silent
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      kid,
+      certificate,
+      providerInfo,
+      creds,
+      silent,
+    ]
+  }
+}
+
+/// Результат подписания запроса на сертификат
+///
+/// Generated class from Pigeon that represents data sent in messages.
+struct SignRequestResult {
+  /// Сведения о созданном запросе на сертификат или сертификате.
+  /// Заполняется на Android (signRequest отправляет подписанный запрос на сервер).
+  var certificate: DSSCertificate? = nil
+  /// Подписанный запрос на сертификат, закодированный в Base64.
+  /// Заполняется на iOS (signRequest НЕ отправляет на сервер).
+  var signedRequest: String? = nil
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> SignRequestResult? {
+    let certificate: DSSCertificate? = nilOrValue(pigeonVar_list[0])
+    let signedRequest: String? = nilOrValue(pigeonVar_list[1])
+
+    return SignRequestResult(
+      certificate: certificate,
+      signedRequest: signedRequest
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      certificate,
+      signedRequest,
+    ]
+  }
+}
+
+/// Параметры для отправки подписанного запроса на сертификат на сервер
+///
+/// Generated class from Pigeon that represents data sent in messages.
+struct SendSignRequestRequest {
+  /// Идентификатор набора ключей пользователя
+  var kid: String
+  /// Сведения о запросе на сертификат (Android)
+  var certificate: DSSCertificate? = nil
+  /// Подписанный запрос на сертификат, закодированный в Base64
+  /// Android: signCertRequest (ByteArray?)
+  /// iOS: content (Data)
+  var signCertRequest: String? = nil
+  /// Учётные данные (pin на ключевой контейнер) (Android)
+  var creds: CryptoProviderCreds? = nil
+  /// Сведения о криптопровайдере (Android)
+  var providerInfo: CryptoProviderInfo? = nil
+  /// Идентификатор обработчика УЦ (iOS)
+  var caId: Int64? = nil
+  /// Идентификатор запроса на сертификат (iOS)
+  var rid: String? = nil
+  /// Флаг для скрытия/отображения диалоговых окон SDK (iOS: silent mode).
+  /// Не используется по умолчанию.
+  var silent: Bool? = nil
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> SendSignRequestRequest? {
+    let kid = pigeonVar_list[0] as! String
+    let certificate: DSSCertificate? = nilOrValue(pigeonVar_list[1])
+    let signCertRequest: String? = nilOrValue(pigeonVar_list[2])
+    let creds: CryptoProviderCreds? = nilOrValue(pigeonVar_list[3])
+    let providerInfo: CryptoProviderInfo? = nilOrValue(pigeonVar_list[4])
+    let caId: Int64? = nilOrValue(pigeonVar_list[5])
+    let rid: String? = nilOrValue(pigeonVar_list[6])
+    let silent: Bool? = nilOrValue(pigeonVar_list[7])
+
+    return SendSignRequestRequest(
+      kid: kid,
+      certificate: certificate,
+      signCertRequest: signCertRequest,
+      creds: creds,
+      providerInfo: providerInfo,
+      caId: caId,
+      rid: rid,
+      silent: silent
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      kid,
+      certificate,
+      signCertRequest,
+      creds,
+      providerInfo,
+      caId,
+      rid,
+      silent,
+    ]
+  }
+}
+
+/// Параметры для установки сертификата в ключевой контейнер
+///
+/// Generated class from Pigeon that represents data sent in messages.
+struct InstallCertificateRequest {
+  /// Сведения о сертификате / запросе на сертификат, который требуется установить
+  /// Android: certificate (Certificate) — сведения о запросе
+  /// iOS: cert (DSSCertificate) — сведения и содержимое сертификата
+  var certificate: DSSCertificate
+  /// Идентификатор набора ключей пользователя (iOS)
+  var kid: String? = nil
+  /// Идентификатор запроса на сертификат (iOS)
+  var rid: String? = nil
+  /// Сертификат, который требуется установить, закодированный в Base64 (Android: crtBytes)
+  var crtBytes: String? = nil
+  /// Учётные данные (pin на контейнер закрытого ключа)
+  /// Android: pin; iOS: DSSCryptoProviderInfoCreds (pin, puk, isSilent)
+  var creds: CryptoProviderCreds? = nil
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> InstallCertificateRequest? {
+    let certificate = pigeonVar_list[0] as! DSSCertificate
+    let kid: String? = nilOrValue(pigeonVar_list[1])
+    let rid: String? = nilOrValue(pigeonVar_list[2])
+    let crtBytes: String? = nilOrValue(pigeonVar_list[3])
+    let creds: CryptoProviderCreds? = nilOrValue(pigeonVar_list[4])
+
+    return InstallCertificateRequest(
+      certificate: certificate,
+      kid: kid,
+      rid: rid,
+      crtBytes: crtBytes,
+      creds: creds
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      certificate,
+      kid,
+      rid,
+      crtBytes,
+      creds,
+    ]
+  }
+}
+
+/// Сведения о подтверждённом документе
+///
+/// Generated class from Pigeon that represents data sent in messages.
+struct DssConfirmedDocument {
+  /// Идентификатор документа
+  var id: String
+  /// Хэш-значение от документа
+  var hash: String
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> DssConfirmedDocument? {
+    let id = pigeonVar_list[0] as! String
+    let hash = pigeonVar_list[1] as! String
+
+    return DssConfirmedDocument(
+      id: id,
+      hash: hash
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      id,
+      hash,
+    ]
+  }
+}
+
+/// Сведения об отклонённом документе
+///
+/// Generated class from Pigeon that represents data sent in messages.
+struct DssDeclinedDocument {
+  /// Идентификатор документа
+  var id: String
+  /// Хэш-значение от документа
+  var hash: String
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> DssDeclinedDocument? {
+    let id = pigeonVar_list[0] as! String
+    let hash = pigeonVar_list[1] as! String
+
+    return DssDeclinedDocument(
+      id: id,
+      hash: hash
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      id,
+      hash,
+    ]
+  }
+}
+
+/// Сведения о подтверждаемой операции
+///
+/// Generated class from Pigeon that represents data sent in messages.
+struct DssApprovedOperation {
+  /// Идентификатор операции на Сервисе Операций
+  var id: String
+  /// Тип операции
+  var type: String
+  /// Описание операции
+  var caption: String
+  /// Дополнительные параметры операции
+  var parameters: [String?: String?]? = nil
+  /// Массив сведений о подтвержденных документах
+  var confirmedDocuments: [DssConfirmedDocument?]? = nil
+  /// Массив сведений об отклоненных документах
+  var declinedDocuments: [DssDeclinedDocument?]? = nil
+  /// Штамп времени
+  var timeStamp: Int64
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> DssApprovedOperation? {
+    let id = pigeonVar_list[0] as! String
+    let type = pigeonVar_list[1] as! String
+    let caption = pigeonVar_list[2] as! String
+    let parameters: [String?: String?]? = nilOrValue(pigeonVar_list[3])
+    let confirmedDocuments: [DssConfirmedDocument?]? = nilOrValue(pigeonVar_list[4])
+    let declinedDocuments: [DssDeclinedDocument?]? = nilOrValue(pigeonVar_list[5])
+    let timeStamp = pigeonVar_list[6] as! Int64
+
+    return DssApprovedOperation(
+      id: id,
+      type: type,
+      caption: caption,
+      parameters: parameters,
+      confirmedDocuments: confirmedDocuments,
+      declinedDocuments: declinedDocuments,
+      timeStamp: timeStamp
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      id,
+      type,
+      caption,
+      parameters,
+      confirmedDocuments,
+      declinedDocuments,
+      timeStamp,
+    ]
+  }
+}
+
+/// Запрос на подтверждение/отклонение операции, созданной на сервере
+///
+/// Generated class from Pigeon that represents data sent in messages.
+struct DssApproveRequestMt {
+  /// Сведения о подтверждаемой операции
+  var approvedOperation: DssApprovedOperation
+  /// Код аутентификации операции (HMAC)
+  var hmac: String
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> DssApproveRequestMt? {
+    let approvedOperation = pigeonVar_list[0] as! DssApprovedOperation
+    let hmac = pigeonVar_list[1] as! String
+
+    return DssApproveRequestMt(
+      approvedOperation: approvedOperation,
+      hmac: hmac
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      approvedOperation,
+      hmac,
+    ]
+  }
+}
+
+/// Результат выполнения операции signMT
+///
+/// Generated class from Pigeon that represents data sent in messages.
+struct DssSignMtResult {
+  /// Тип результата
+  var resultType: DssSignMtResultType
+  /// Результат подтверждения операции (для success и partialSuccess)
+  var confirmState: DssConfirmState? = nil
+  /// Запрос на подтверждение/отклонение (для отложенного подписания - suspendedConfirm)
+  var approveRequest: DssApproveRequestMt? = nil
+  /// Список документов с ошибками (для partialSuccess)
+  var documentsWithErrors: [DssDocument?]? = nil
+  /// Сведения об ошибках: ключ - id документа, значение - описание ошибки (Только iOS)
+  var documentErrors: [String?: String?]? = nil
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> DssSignMtResult? {
+    let resultType = pigeonVar_list[0] as! DssSignMtResultType
+    let confirmState: DssConfirmState? = nilOrValue(pigeonVar_list[1])
+    let approveRequest: DssApproveRequestMt? = nilOrValue(pigeonVar_list[2])
+    let documentsWithErrors: [DssDocument?]? = nilOrValue(pigeonVar_list[3])
+    let documentErrors: [String?: String?]? = nilOrValue(pigeonVar_list[4])
+
+    return DssSignMtResult(
+      resultType: resultType,
+      confirmState: confirmState,
+      approveRequest: approveRequest,
+      documentsWithErrors: documentsWithErrors,
+      documentErrors: documentErrors
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      resultType,
+      confirmState,
+      approveRequest,
+      documentsWithErrors,
+      documentErrors,
+    ]
+  }
+}
+
+/// Универсальная модель сведений о ключевом контейнере для обеих платформ
+///
+/// Generated class from Pigeon that represents data sent in messages.
+struct DSSSigningKeyInfo {
+  var uid: String? = nil
+  var containerName: String? = nil
+  var containerFullName: String? = nil
+  var cid: String? = nil
+  var rid: String? = nil
+  var isInstalled: Bool
+  var certBase64: String? = nil
+  var keyContainerType: DSSCryptoKeyContainerType? = nil
+  var pin: String? = nil
+  var providerInfo: CryptoProviderInfo? = nil
+  var kid: String? = nil
+  var providerName: String? = nil
+  var providerType: Int64? = nil
+  var isExportable: Bool? = nil
+  var createdAtMs: Int64? = nil
+  var installedAtMs: Int64? = nil
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> DSSSigningKeyInfo? {
+    let uid: String? = nilOrValue(pigeonVar_list[0])
+    let containerName: String? = nilOrValue(pigeonVar_list[1])
+    let containerFullName: String? = nilOrValue(pigeonVar_list[2])
+    let cid: String? = nilOrValue(pigeonVar_list[3])
+    let rid: String? = nilOrValue(pigeonVar_list[4])
+    let isInstalled = pigeonVar_list[5] as! Bool
+    let certBase64: String? = nilOrValue(pigeonVar_list[6])
+    let keyContainerType: DSSCryptoKeyContainerType? = nilOrValue(pigeonVar_list[7])
+    let pin: String? = nilOrValue(pigeonVar_list[8])
+    let providerInfo: CryptoProviderInfo? = nilOrValue(pigeonVar_list[9])
+    let kid: String? = nilOrValue(pigeonVar_list[10])
+    let providerName: String? = nilOrValue(pigeonVar_list[11])
+    let providerType: Int64? = nilOrValue(pigeonVar_list[12])
+    let isExportable: Bool? = nilOrValue(pigeonVar_list[13])
+    let createdAtMs: Int64? = nilOrValue(pigeonVar_list[14])
+    let installedAtMs: Int64? = nilOrValue(pigeonVar_list[15])
+
+    return DSSSigningKeyInfo(
+      uid: uid,
+      containerName: containerName,
+      containerFullName: containerFullName,
+      cid: cid,
+      rid: rid,
+      isInstalled: isInstalled,
+      certBase64: certBase64,
+      keyContainerType: keyContainerType,
+      pin: pin,
+      providerInfo: providerInfo,
+      kid: kid,
+      providerName: providerName,
+      providerType: providerType,
+      isExportable: isExportable,
+      createdAtMs: createdAtMs,
+      installedAtMs: installedAtMs
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      uid,
+      containerName,
+      containerFullName,
+      cid,
+      rid,
+      isInstalled,
+      certBase64,
+      keyContainerType,
+      pin,
+      providerInfo,
+      kid,
+      providerName,
+      providerType,
+      isExportable,
+      createdAtMs,
+      installedAtMs,
+    ]
+  }
+}
+
 private class CryptoProDssApiPigeonCodecReader: FlutterStandardReader {
   override func readValue(ofType type: UInt8) -> Any? {
     switch type {
@@ -995,41 +1990,99 @@ private class CryptoProDssApiPigeonCodecReader: FlutterStandardReader {
       }
       return nil
     case 134:
-      return SdkInitRequest.fromList(self.readValue() as! [Any?])
+      let enumResultAsInt: Int? = nilOrValue(self.readValue() as! Int?)
+      if let enumResultAsInt = enumResultAsInt {
+        return DssConfirmationSendingMode(rawValue: enumResultAsInt)
+      }
+      return nil
     case 135:
-      return SdkInitResult.fromList(self.readValue() as! [Any?])
+      let enumResultAsInt: Int? = nilOrValue(self.readValue() as! Int?)
+      if let enumResultAsInt = enumResultAsInt {
+        return DssConfirmState(rawValue: enumResultAsInt)
+      }
+      return nil
     case 136:
-      return DssUser.fromList(self.readValue() as! [Any?])
+      let enumResultAsInt: Int? = nilOrValue(self.readValue() as! Int?)
+      if let enumResultAsInt = enumResultAsInt {
+        return DssSignMtResultType(rawValue: enumResultAsInt)
+      }
+      return nil
     case 137:
-      return DSSRegisterInfo.fromList(self.readValue() as! [Any?])
+      return SdkInitRequest.fromList(self.readValue() as! [Any?])
     case 138:
-      return QrData.fromList(self.readValue() as! [Any?])
+      return SdkInitResult.fromList(self.readValue() as! [Any?])
     case 139:
-      return RawQr.fromList(self.readValue() as! [Any?])
+      return DssUser.fromList(self.readValue() as! [Any?])
     case 140:
-      return ScanQrResult.fromList(self.readValue() as! [Any?])
+      return DSSRegisterInfo.fromList(self.readValue() as! [Any?])
     case 141:
-      return DssKeyProtectionFlags.fromList(self.readValue() as! [Any?])
+      return QrData.fromList(self.readValue() as! [Any?])
     case 142:
-      return DssPolicyPayload.fromList(self.readValue() as! [Any?])
+      return RawQr.fromList(self.readValue() as! [Any?])
     case 143:
-      return GetOperationsRequest.fromList(self.readValue() as! [Any?])
+      return ScanQrResult.fromList(self.readValue() as! [Any?])
     case 144:
-      return DssAppSystemDescription.fromList(self.readValue() as! [Any?])
+      return RemoveAuthRequest.fromList(self.readValue() as! [Any?])
     case 145:
-      return DssOperationDescription.fromList(self.readValue() as! [Any?])
+      return DssKeyProtectionFlags.fromList(self.readValue() as! [Any?])
     case 146:
-      return DssDocument.fromList(self.readValue() as! [Any?])
+      return DssPolicyPayload.fromList(self.readValue() as! [Any?])
     case 147:
-      return DssOperationParameters.fromList(self.readValue() as! [Any?])
+      return GetOperationsRequest.fromList(self.readValue() as! [Any?])
     case 148:
-      return DssOperation.fromList(self.readValue() as! [Any?])
+      return DssAppSystemDescription.fromList(self.readValue() as! [Any?])
     case 149:
-      return DssOperationsInfo.fromList(self.readValue() as! [Any?])
+      return DssOperationDescription.fromList(self.readValue() as! [Any?])
     case 150:
-      return DSSCertificate.fromList(self.readValue() as! [Any?])
+      return DssDocument.fromList(self.readValue() as! [Any?])
     case 151:
+      return DssOperationParameters.fromList(self.readValue() as! [Any?])
+    case 152:
+      return DssOperation.fromList(self.readValue() as! [Any?])
+    case 153:
+      return DssOperationsInfo.fromList(self.readValue() as! [Any?])
+    case 154:
+      return DssCryptoProviderInfo.fromList(self.readValue() as! [Any?])
+    case 155:
+      return DssExtensionsPolicy.fromList(self.readValue() as! [Any?])
+    case 156:
+      return DssNamePolicy.fromList(self.readValue() as! [Any?])
+    case 157:
+      return DssProcessingTemplate.fromList(self.readValue() as! [Any?])
+    case 158:
+      return DssCaPolicy.fromList(self.readValue() as! [Any?])
+    case 159:
+      return DssCaParams.fromList(self.readValue() as! [Any?])
+    case 160:
+      return CryptoProviderInfo.fromList(self.readValue() as! [Any?])
+    case 161:
+      return DSSCertificate.fromList(self.readValue() as! [Any?])
+    case 162:
       return DeleteCertRequest.fromList(self.readValue() as! [Any?])
+    case 163:
+      return GetCertRequest.fromList(self.readValue() as! [Any?])
+    case 164:
+      return CryptoProviderCreds.fromList(self.readValue() as! [Any?])
+    case 165:
+      return SignRequestRequest.fromList(self.readValue() as! [Any?])
+    case 166:
+      return SignRequestResult.fromList(self.readValue() as! [Any?])
+    case 167:
+      return SendSignRequestRequest.fromList(self.readValue() as! [Any?])
+    case 168:
+      return InstallCertificateRequest.fromList(self.readValue() as! [Any?])
+    case 169:
+      return DssConfirmedDocument.fromList(self.readValue() as! [Any?])
+    case 170:
+      return DssDeclinedDocument.fromList(self.readValue() as! [Any?])
+    case 171:
+      return DssApprovedOperation.fromList(self.readValue() as! [Any?])
+    case 172:
+      return DssApproveRequestMt.fromList(self.readValue() as! [Any?])
+    case 173:
+      return DssSignMtResult.fromList(self.readValue() as! [Any?])
+    case 174:
+      return DSSSigningKeyInfo.fromList(self.readValue() as! [Any?])
     default:
       return super.readValue(ofType: type)
     }
@@ -1053,59 +2106,128 @@ private class CryptoProDssApiPigeonCodecWriter: FlutterStandardWriter {
     } else if let value = value as? DSSCryptoKeyContainerType {
       super.writeByte(133)
       super.writeValue(value.rawValue)
-    } else if let value = value as? SdkInitRequest {
+    } else if let value = value as? DssConfirmationSendingMode {
       super.writeByte(134)
-      super.writeValue(value.toList())
-    } else if let value = value as? SdkInitResult {
+      super.writeValue(value.rawValue)
+    } else if let value = value as? DssConfirmState {
       super.writeByte(135)
-      super.writeValue(value.toList())
-    } else if let value = value as? DssUser {
+      super.writeValue(value.rawValue)
+    } else if let value = value as? DssSignMtResultType {
       super.writeByte(136)
-      super.writeValue(value.toList())
-    } else if let value = value as? DSSRegisterInfo {
+      super.writeValue(value.rawValue)
+    } else if let value = value as? SdkInitRequest {
       super.writeByte(137)
       super.writeValue(value.toList())
-    } else if let value = value as? QrData {
+    } else if let value = value as? SdkInitResult {
       super.writeByte(138)
       super.writeValue(value.toList())
-    } else if let value = value as? RawQr {
+    } else if let value = value as? DssUser {
       super.writeByte(139)
       super.writeValue(value.toList())
-    } else if let value = value as? ScanQrResult {
+    } else if let value = value as? DSSRegisterInfo {
       super.writeByte(140)
       super.writeValue(value.toList())
-    } else if let value = value as? DssKeyProtectionFlags {
+    } else if let value = value as? QrData {
       super.writeByte(141)
       super.writeValue(value.toList())
-    } else if let value = value as? DssPolicyPayload {
+    } else if let value = value as? RawQr {
       super.writeByte(142)
       super.writeValue(value.toList())
-    } else if let value = value as? GetOperationsRequest {
+    } else if let value = value as? ScanQrResult {
       super.writeByte(143)
       super.writeValue(value.toList())
-    } else if let value = value as? DssAppSystemDescription {
+    } else if let value = value as? RemoveAuthRequest {
       super.writeByte(144)
       super.writeValue(value.toList())
-    } else if let value = value as? DssOperationDescription {
+    } else if let value = value as? DssKeyProtectionFlags {
       super.writeByte(145)
       super.writeValue(value.toList())
-    } else if let value = value as? DssDocument {
+    } else if let value = value as? DssPolicyPayload {
       super.writeByte(146)
       super.writeValue(value.toList())
-    } else if let value = value as? DssOperationParameters {
+    } else if let value = value as? GetOperationsRequest {
       super.writeByte(147)
       super.writeValue(value.toList())
-    } else if let value = value as? DssOperation {
+    } else if let value = value as? DssAppSystemDescription {
       super.writeByte(148)
       super.writeValue(value.toList())
-    } else if let value = value as? DssOperationsInfo {
+    } else if let value = value as? DssOperationDescription {
       super.writeByte(149)
       super.writeValue(value.toList())
-    } else if let value = value as? DSSCertificate {
+    } else if let value = value as? DssDocument {
       super.writeByte(150)
       super.writeValue(value.toList())
-    } else if let value = value as? DeleteCertRequest {
+    } else if let value = value as? DssOperationParameters {
       super.writeByte(151)
+      super.writeValue(value.toList())
+    } else if let value = value as? DssOperation {
+      super.writeByte(152)
+      super.writeValue(value.toList())
+    } else if let value = value as? DssOperationsInfo {
+      super.writeByte(153)
+      super.writeValue(value.toList())
+    } else if let value = value as? DssCryptoProviderInfo {
+      super.writeByte(154)
+      super.writeValue(value.toList())
+    } else if let value = value as? DssExtensionsPolicy {
+      super.writeByte(155)
+      super.writeValue(value.toList())
+    } else if let value = value as? DssNamePolicy {
+      super.writeByte(156)
+      super.writeValue(value.toList())
+    } else if let value = value as? DssProcessingTemplate {
+      super.writeByte(157)
+      super.writeValue(value.toList())
+    } else if let value = value as? DssCaPolicy {
+      super.writeByte(158)
+      super.writeValue(value.toList())
+    } else if let value = value as? DssCaParams {
+      super.writeByte(159)
+      super.writeValue(value.toList())
+    } else if let value = value as? CryptoProviderInfo {
+      super.writeByte(160)
+      super.writeValue(value.toList())
+    } else if let value = value as? DSSCertificate {
+      super.writeByte(161)
+      super.writeValue(value.toList())
+    } else if let value = value as? DeleteCertRequest {
+      super.writeByte(162)
+      super.writeValue(value.toList())
+    } else if let value = value as? GetCertRequest {
+      super.writeByte(163)
+      super.writeValue(value.toList())
+    } else if let value = value as? CryptoProviderCreds {
+      super.writeByte(164)
+      super.writeValue(value.toList())
+    } else if let value = value as? SignRequestRequest {
+      super.writeByte(165)
+      super.writeValue(value.toList())
+    } else if let value = value as? SignRequestResult {
+      super.writeByte(166)
+      super.writeValue(value.toList())
+    } else if let value = value as? SendSignRequestRequest {
+      super.writeByte(167)
+      super.writeValue(value.toList())
+    } else if let value = value as? InstallCertificateRequest {
+      super.writeByte(168)
+      super.writeValue(value.toList())
+    } else if let value = value as? DssConfirmedDocument {
+      super.writeByte(169)
+      super.writeValue(value.toList())
+    } else if let value = value as? DssDeclinedDocument {
+      super.writeByte(170)
+      super.writeValue(value.toList())
+    } else if let value = value as? DssApprovedOperation {
+      super.writeByte(171)
+      super.writeValue(value.toList())
+    } else if let value = value as? DssApproveRequestMt {
+      super.writeByte(172)
+      super.writeValue(value.toList())
+    } else if let value = value as? DssSignMtResult {
+      super.writeByte(173)
+      super.writeValue(value.toList())
+    } else if let value = value as? DSSSigningKeyInfo {
+      super.writeByte(174)
       super.writeValue(value.toList())
     } else {
       super.writeValue(value)
@@ -1200,6 +2322,8 @@ protocol AuthHostApi {
   /// Данный метод может быть вызван только для векторов аутентификации,
   /// находящихся в состоянии NotVerified.
   func verifyDevice(kid: String, silent: Bool, completion: @escaping (Result<Void, Error>) -> Void)
+  /// Удаление устройства пользователя и его вектора аутентификации.
+  func removeAuth(request: RemoveAuthRequest, completion: @escaping (Result<Void, Error>) -> Void)
 }
 
 /// Generated setup class from Pigeon to handle messages through the `binaryMessenger`.
@@ -1309,6 +2433,24 @@ class AuthHostApiSetup {
     } else {
       verifyDeviceChannel.setMessageHandler(nil)
     }
+    /// Удаление устройства пользователя и его вектора аутентификации.
+    let removeAuthChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.cpkey.AuthHostApi.removeAuth\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      removeAuthChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let requestArg = args[0] as! RemoveAuthRequest
+        api.removeAuth(request: requestArg) { result in
+          switch result {
+          case .success:
+            reply(wrapResult(nil))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      removeAuthChannel.setMessageHandler(nil)
+    }
   }
 }
 /// Generated protocol from Pigeon that represents a handler of messages from Flutter.
@@ -1317,6 +2459,8 @@ protocol PolicyHostApi {
   func getParamsDss(serviceUrl: String, completion: @escaping (Result<DssPolicyPayload, Error>) -> Void)
   /// Метод получения списка операций, требующих подтверждения.
   func getOperations(request: GetOperationsRequest, completion: @escaping (Result<DssOperationsInfo, Error>) -> Void)
+  /// Запрос с сервера параметров подписи
+  func getCaParams(kid: String, completion: @escaping (Result<DssCaParams, Error>) -> Void)
 }
 
 /// Generated setup class from Pigeon to handle messages through the `binaryMessenger`.
@@ -1361,6 +2505,24 @@ class PolicyHostApiSetup {
     } else {
       getOperationsChannel.setMessageHandler(nil)
     }
+    /// Запрос с сервера параметров подписи
+    let getCaParamsChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.cpkey.PolicyHostApi.getCaParams\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      getCaParamsChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let kidArg = args[0] as! String
+        api.getCaParams(kid: kidArg) { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      getCaParamsChannel.setMessageHandler(nil)
+    }
   }
 }
 /// Generated protocol from Pigeon that represents a handler of messages from Flutter.
@@ -1369,6 +2531,32 @@ protocol CertHostApi {
   func getCertList(kid: String, completion: @escaping (Result<[DSSCertificate], Error>) -> Void)
   /// Метод удаления сертификата.
   func deleteCert(request: DeleteCertRequest, completion: @escaping (Result<Void, Error>) -> Void)
+  /// Создание запроса на сертификат с ключом на сервере (cloud / distributed)
+  /// Android: Cert.getCert(...)
+  /// iOS: createUnsignedCert(...)
+  func getCert(request: GetCertRequest, completion: @escaping (Result<DSSCertificate, Error>) -> Void)
+  /// Создание неподписанного запроса на сертификат и отправка его на сервер для синхронизации.
+  /// Android: getClientCert(context, kid, caId, tId, dn, callback)
+  /// iOS: createUnsignedCert(kid, caId, tId, dn, reqParams, silent)
+  func getClientCert(request: GetCertRequest, completion: @escaping (Result<DSSCertificate, Error>) -> Void)
+  /// Создание ключа подписи на мобильном устройстве или внешнем носителе
+  /// и подписание запроса на сертификат.
+  ///
+  /// Android: создаёт ключ, подписывает запрос и отправляет на сервер → возвращает Certificate.
+  /// iOS: создаёт ключ и подписывает запрос БЕЗ отправки на сервер → возвращает signedRequest (Base64).
+  func signRequest(request: SignRequestRequest, completion: @escaping (Result<SignRequestResult, Error>) -> Void)
+  /// Отправка подписанного запроса на сертификат на сервер для синхронизации.
+  /// Android: sendSignRequest(context, kid, certificate, signCertRequest, pin, providerInfo, callback)
+  /// iOS: sendClientSignedCertificate(kid, caId, rid, content, silent)
+  func sendSignRequest(request: SendSignRequestRequest, completion: @escaping (Result<DSSCertificate, Error>) -> Void)
+  /// Установка сертификата в ключевой контейнер на мобильном устройстве
+  /// или внешнем носителе.
+  /// Android: также отправляет сертификат на сервер для синхронизации.
+  /// iOS: только локальная установка без отправки.
+  ///
+  /// Android: installCertificate(context, certificate, crtBytes, pin, callback)
+  /// iOS: installCertificate(kid, cert, rid, cred)
+  func installCertificate(request: InstallCertificateRequest, completion: @escaping (Result<Void, Error>) -> Void)
 }
 
 /// Generated setup class from Pigeon to handle messages through the `binaryMessenger`.
@@ -1412,6 +2600,197 @@ class CertHostApiSetup {
       }
     } else {
       deleteCertChannel.setMessageHandler(nil)
+    }
+    /// Создание запроса на сертификат с ключом на сервере (cloud / distributed)
+    /// Android: Cert.getCert(...)
+    /// iOS: createUnsignedCert(...)
+    let getCertChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.cpkey.CertHostApi.getCert\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      getCertChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let requestArg = args[0] as! GetCertRequest
+        api.getCert(request: requestArg) { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      getCertChannel.setMessageHandler(nil)
+    }
+    /// Создание неподписанного запроса на сертификат и отправка его на сервер для синхронизации.
+    /// Android: getClientCert(context, kid, caId, tId, dn, callback)
+    /// iOS: createUnsignedCert(kid, caId, tId, dn, reqParams, silent)
+    let getClientCertChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.cpkey.CertHostApi.getClientCert\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      getClientCertChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let requestArg = args[0] as! GetCertRequest
+        api.getClientCert(request: requestArg) { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      getClientCertChannel.setMessageHandler(nil)
+    }
+    /// Создание ключа подписи на мобильном устройстве или внешнем носителе
+    /// и подписание запроса на сертификат.
+    ///
+    /// Android: создаёт ключ, подписывает запрос и отправляет на сервер → возвращает Certificate.
+    /// iOS: создаёт ключ и подписывает запрос БЕЗ отправки на сервер → возвращает signedRequest (Base64).
+    let signRequestChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.cpkey.CertHostApi.signRequest\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      signRequestChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let requestArg = args[0] as! SignRequestRequest
+        api.signRequest(request: requestArg) { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      signRequestChannel.setMessageHandler(nil)
+    }
+    /// Отправка подписанного запроса на сертификат на сервер для синхронизации.
+    /// Android: sendSignRequest(context, kid, certificate, signCertRequest, pin, providerInfo, callback)
+    /// iOS: sendClientSignedCertificate(kid, caId, rid, content, silent)
+    let sendSignRequestChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.cpkey.CertHostApi.sendSignRequest\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      sendSignRequestChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let requestArg = args[0] as! SendSignRequestRequest
+        api.sendSignRequest(request: requestArg) { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      sendSignRequestChannel.setMessageHandler(nil)
+    }
+    /// Установка сертификата в ключевой контейнер на мобильном устройстве
+    /// или внешнем носителе.
+    /// Android: также отправляет сертификат на сервер для синхронизации.
+    /// iOS: только локальная установка без отправки.
+    ///
+    /// Android: installCertificate(context, certificate, crtBytes, pin, callback)
+    /// iOS: installCertificate(kid, cert, rid, cred)
+    let installCertificateChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.cpkey.CertHostApi.installCertificate\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      installCertificateChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let requestArg = args[0] as! InstallCertificateRequest
+        api.installCertificate(request: requestArg) { result in
+          switch result {
+          case .success:
+            reply(wrapResult(nil))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      installCertificateChannel.setMessageHandler(nil)
+    }
+  }
+}
+/// Generated protocol from Pigeon that represents a handler of messages from Flutter.
+protocol SignHostApi {
+  /// Подтверждение операции, созданной на сервере
+  ///
+  /// [kid] - Идентификатор набора ключей пользователя
+  /// [operation] - Сведения об операции
+  /// [enableMultiSelection] - Флаг, разрешено ли частичное подписание
+  /// [confirmationSendingMode] - Режим отправки подтверждения (online/offline)
+  /// [pinCode] - ПИН-код на ключевой контейнер (опционально)
+  /// [silent] - Флаг для скрытия/отображения диалоговых окон SDK
+  func signMt(kid: String, operation: DssOperation?, enableMultiSelection: Bool, confirmationSendingMode: DssConfirmationSendingMode, pinCode: String?, silent: Bool, completion: @escaping (Result<DssSignMtResult, Error>) -> Void)
+}
+
+/// Generated setup class from Pigeon to handle messages through the `binaryMessenger`.
+class SignHostApiSetup {
+  static var codec: FlutterStandardMessageCodec { CryptoProDssApiPigeonCodec.shared }
+  /// Sets up an instance of `SignHostApi` to handle messages through the `binaryMessenger`.
+  static func setUp(binaryMessenger: FlutterBinaryMessenger, api: SignHostApi?, messageChannelSuffix: String = "") {
+    let channelSuffix = messageChannelSuffix.count > 0 ? ".\(messageChannelSuffix)" : ""
+    /// Подтверждение операции, созданной на сервере
+    ///
+    /// [kid] - Идентификатор набора ключей пользователя
+    /// [operation] - Сведения об операции
+    /// [enableMultiSelection] - Флаг, разрешено ли частичное подписание
+    /// [confirmationSendingMode] - Режим отправки подтверждения (online/offline)
+    /// [pinCode] - ПИН-код на ключевой контейнер (опционально)
+    /// [silent] - Флаг для скрытия/отображения диалоговых окон SDK
+    let signMtChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.cpkey.SignHostApi.signMt\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      signMtChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let kidArg = args[0] as! String
+        let operationArg: DssOperation? = nilOrValue(args[1])
+        let enableMultiSelectionArg = args[2] as! Bool
+        let confirmationSendingModeArg = args[3] as! DssConfirmationSendingMode
+        let pinCodeArg: String? = nilOrValue(args[4])
+        let silentArg = args[5] as! Bool
+        api.signMt(kid: kidArg, operation: operationArg, enableMultiSelection: enableMultiSelectionArg, confirmationSendingMode: confirmationSendingModeArg, pinCode: pinCodeArg, silent: silentArg) { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      signMtChannel.setMessageHandler(nil)
+    }
+  }
+}
+/// Generated protocol from Pigeon that represents a handler of messages from Flutter.
+protocol SigningKeyHostApi {
+  /// Получение списка ключей подписи.
+  /// [checkAllContainers] используется только на Android (на iOS параметр будет проигнорирован).
+  func listKeys(checkAllContainers: Bool, completion: @escaping (Result<[DSSSigningKeyInfo], Error>) -> Void)
+}
+
+/// Generated setup class from Pigeon to handle messages through the `binaryMessenger`.
+class SigningKeyHostApiSetup {
+  static var codec: FlutterStandardMessageCodec { CryptoProDssApiPigeonCodec.shared }
+  /// Sets up an instance of `SigningKeyHostApi` to handle messages through the `binaryMessenger`.
+  static func setUp(binaryMessenger: FlutterBinaryMessenger, api: SigningKeyHostApi?, messageChannelSuffix: String = "") {
+    let channelSuffix = messageChannelSuffix.count > 0 ? ".\(messageChannelSuffix)" : ""
+    /// Получение списка ключей подписи.
+    /// [checkAllContainers] используется только на Android (на iOS параметр будет проигнорирован).
+    let listKeysChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.cpkey.SigningKeyHostApi.listKeys\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      listKeysChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let checkAllContainersArg = args[0] as! Bool
+        api.listKeys(checkAllContainers: checkAllContainersArg) { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      listKeysChannel.setMessageHandler(nil)
     }
   }
 }

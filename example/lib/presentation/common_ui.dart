@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 
 extension DialogExtension on BuildContext {
-  void showErrorDialog(String errorMessage) {
+  void showInfoDialog(
+      String message, {
+        VoidCallback? onConfirm,
+      }) {
     showDialog(
       context: this,
       barrierDismissible: false,
@@ -9,18 +12,20 @@ extension DialogExtension on BuildContext {
         return AlertDialog(
           title: const Row(
             children: [
-              Icon(Icons.error_outline, color: Colors.red),
+              Icon(Icons.error_outline),
               SizedBox(width: 8),
-              Text('Произошла ошибка'),
+              Text('Инофрмация'),
             ],
           ),
-          content: Text(errorMessage),
+          content: Text(message),
           actions: <Widget>[
             TextButton(
               child: const Text('OK'),
               onPressed: () {
-                // Закрываем диалог
                 Navigator.of(dialogContext).pop();
+                if (onConfirm != null) {
+                  onConfirm();
+                }
               },
             ),
           ],

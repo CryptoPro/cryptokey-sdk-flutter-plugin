@@ -11,161 +11,180 @@ class CertScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocProvider<CertsBloc>(
       create: (context) => getIt<CertsBloc>()..add(LoadCerts()),
-      child: Scaffold(
-        body: BlocBuilder<CertsBloc, CertsState>(
-          builder: (context, state) {
-            if (state is CertsLoading) {
-              return const Center(child: CircularProgressIndicator());
-            }
+      child: Builder(
+        builder: (context) {
+          return Scaffold(
+            floatingActionButton: FloatingActionButton(
+              onPressed: () {
+                context.read<CertsBloc>().add(CreateCert());
+              },
+              child: const Icon(Icons.add),
+            ),
+            body: BlocBuilder<CertsBloc, CertsState>(
+              builder: (context, state) {
+                if (state is CertsLoading) {
+                  return const Center(child: CircularProgressIndicator());
+                }
 
-            if (state is CertsLoaded) {
-              if (state.certs.isEmpty) {
-                return const Center(child: Text('Сертификаты не найдены'));
-              }
-
-              return ListView.builder(
-                padding: const EdgeInsets.all(12),
-                itemCount: state.certs.length,
-                itemBuilder: (context, index) {
-                  final cert = state.certs[index];
-
-                  final displayName =
-                      cert.dn?["2.5.4.3"] ??
-                      cert.friendlyName ??
-                      "Name is empty";
-
-                  String formatDate(int timestampInSeconds) {
-                    final date = DateTime.fromMillisecondsSinceEpoch(
-                      timestampInSeconds * 1000,
-                    );
-                    final day = date.day.toString().padLeft(2, '0');
-                    final month = date.month.toString().padLeft(2, '0');
-                    final year = date.year;
-                    return "$day.$month.$year";
+                if (state is CertsLoaded) {
+                  if (state.certs.isEmpty) {
+                    return const Center(child: Text('Сертификаты не найдены'));
                   }
 
-                  String? dateString;
+                  return ListView.builder(
+                    padding: const EdgeInsets.all(12),
+                    itemCount: state.certs.length,
+                    itemBuilder: (context, index) {
+                      final cert = state.certs[index];
 
-                  if (cert.notBefore == 0) {
-                    dateString = "0";
-                  } else {
-                    dateString =
-                        "${formatDate(cert.notBefore ?? 0)} - ${formatDate(cert.notAfter ?? 0)}";
-                  }
-                  return Card(
-                    margin: const EdgeInsets.only(bottom: 12),
-                    elevation: 2,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Основная информация о сертификате
-                        ListTile(
-                          leading: const Icon(
-                            Icons.insert_drive_file_outlined,
-                            color: Colors.black12,
-                            size: 36,
-                          ),
-                          title: Text(
-                            displayName,
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          subtitle: Text("тип: ${cert.type}"),
-                        ),
+                      final displayName =
+                          cert.dn?["2.5.4.3"] ??
+                          cert.friendlyName ??
+                          "Name is empty";
 
-                        const Divider(height: 1, indent: 16, endIndent: 16),
+                      String formatDate(int timestampInSeconds) {
+                        final date = DateTime.fromMillisecondsSinceEpoch(
+                          timestampInSeconds * 1000,
+                        );
+                        final day = date.day.toString().padLeft(2, '0');
+                        final month = date.month.toString().padLeft(2, '0');
+                        final year = date.year;
+                        return "$day.$month.$year";
+                      }
 
-                        Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _buildParamRow(
-                                "Статус:",
-                                cert.state ?? "not found",
-                              ),
-                              const SizedBox(height: 8),
-                              _buildParamRow("Срок действия:", dateString),
-                              const SizedBox(height: 8),
-                              _buildParamRow(
-                                "Серийный номер:",
-                                cert.serialNumber ?? "not found",
-                              ),
-                              const SizedBox(height: 8),
-                              _buildParamRow(
-                                "ID сертификата (cid):",
-                                cert.cid ?? "—",
-                              ),
-                              const SizedBox(height: 8),
-                              _buildParamRow(
-                                "ID запроса (rid):",
-                                cert.rid ?? "—",
-                              ),
-                              const SizedBox(height: 8),
-                              _buildParamRow(
-                                "Хранилище:",
-                                cert.isClient!
-                                    ? "На устройстве"
-                                    : "Облачное / Серверное",
-                              ),
-                            ],
-                          ),
-                        ),
-                        Positioned(
-                          top: 8,
-                          right: 8,
-                          child: IconButton(
-                            icon: const Icon(
-                              Icons.delete_outline,
-                              color: Colors.redAccent,
-                            ),
-                            tooltip: 'Удалить сертификат/запрос',
-                            onPressed: () {
-                              // Показываем диалог подтверждения удаления
-                              showDialog(
-                                context: context,
-                                builder: (dialogContext) => AlertDialog(
-                                  title: const Text("Удаление сертификата"),
-                                  content: const Text(
-                                    "Вы уверены, что хотите удалить этот сертификат/запрос?",
+                      String? dateString;
+
+                      if (cert.notBefore == 0) {
+                        dateString = "0";
+                      } else {
+                        dateString =
+                            "${formatDate(cert.notBefore ?? 0)} - ${formatDate(cert.notAfter ?? 0)}";
+                      }
+
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        elevation: 2,
+                        child: Stack(
+                          children: [
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                ListTile(
+                                  leading: const Icon(
+                                    Icons.insert_drive_file_outlined,
+                                    color: Colors.black12,
+                                    size: 36,
                                   ),
-                                  actions: [
-                                    TextButton(
-                                      onPressed: () =>
-                                          Navigator.of(dialogContext).pop(),
-                                      child: const Text("Отмена"),
+                                  title: Text(
+                                    displayName,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
                                     ),
-                                    TextButton(
-                                      onPressed: () {
-                                        Navigator.of(dialogContext).pop();
-                                        context.read<CertsBloc>().add(
-                                          DeleteCert(
-                                            cert.cid ?? cert.rid,
-                                          ),
-                                        );
-                                      },
-                                      child: const Text(
-                                        "Удалить",
-                                        style: TextStyle(color: Colors.red),
-                                      ),
-                                    ),
-                                  ],
+                                  ),
+                                  subtitle: Text("тип: ${cert.type}"),
                                 ),
-                              );
-                            },
-                          ),
+                                const Divider(
+                                  height: 1,
+                                  indent: 16,
+                                  endIndent: 16,
+                                ),
+                                Padding(
+                                  padding: const EdgeInsets.all(16.0),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      _buildParamRow(
+                                        "Статус:",
+                                        cert.state ?? "not found",
+                                      ),
+                                      const SizedBox(height: 8),
+                                      _buildParamRow(
+                                        "Срок действия:",
+                                        dateString,
+                                      ),
+                                      const SizedBox(height: 8),
+                                      _buildParamRow(
+                                        "Серийный номер:",
+                                        cert.serialNumber ?? "not found",
+                                      ),
+                                      const SizedBox(height: 8),
+                                      _buildParamRow(
+                                        "ID сертификата (cid):",
+                                        cert.cid ?? "—",
+                                      ),
+                                      const SizedBox(height: 8),
+                                      _buildParamRow(
+                                        "ID запроса (rid):",
+                                        cert.rid ?? "—",
+                                      ),
+                                      const SizedBox(height: 8),
+                                      _buildParamRow(
+                                        "Хранилище:",
+                                        cert.isClient == true
+                                            ? "На устройстве"
+                                            : "Облачное / Серверное",
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                            Positioned(
+                              top: 8,
+                              right: 8,
+                              child: IconButton(
+                                icon: const Icon(
+                                  Icons.delete_outline,
+                                  color: Colors.redAccent,
+                                ),
+                                tooltip: 'Удалить сертификат/запрос',
+                                onPressed: () {
+                                  showDialog(
+                                    context: context,
+                                    builder: (dialogContext) => AlertDialog(
+                                      title: const Text("Удаление сертификата"),
+                                      content: const Text(
+                                        "Вы уверены, что хотите удалить этот сертификат/запрос?",
+                                      ),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () =>
+                                              Navigator.of(dialogContext).pop(),
+                                          child: const Text("Отмена"),
+                                        ),
+                                        TextButton(
+                                          onPressed: () {
+                                            Navigator.of(dialogContext).pop();
+                                            context.read<CertsBloc>().add(
+                                              DeleteCert(cert.rid, cert.cid),
+                                            );
+                                          },
+                                          child: const Text(
+                                            "Удалить",
+                                            style: TextStyle(color: Colors.red),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
+                      );
+                    },
                   );
-                },
-              );
-            }
+                }
 
-            return const Center(
-              child: Text('Ошибка при загрузке сертификатов'),
-            );
-          },
-        ),
+                return const Center(
+                  child: Text('Ошибка при загрузке сертификатов'),
+                );
+              },
+            ),
+          );
+        },
       ),
     );
   }

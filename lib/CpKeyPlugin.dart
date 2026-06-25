@@ -1,4 +1,5 @@
 import 'package:cpkey/api/crypto_pro_dss.dart';
+import 'package:cpkey/api/signing_key.dart';
 
 import 'api/auth.dart';
 import 'api/cert.dart';
@@ -14,4 +15,5 @@ class CpKeyPlugin {
   static final Docs docs = Docs();
   static final Policy policy = Policy();
   static final Sign sign = Sign();
+  static final SigningKey signingKey = SigningKey();
 }

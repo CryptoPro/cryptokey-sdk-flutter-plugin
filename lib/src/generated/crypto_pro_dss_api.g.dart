@@ -47,10 +47,39 @@ enum DSSDeviceType {
 
 enum DSSCryptoKeyContainerType {
   unknown,
+  cloud,
   device,
   rutoken,
   rutokenPKCS11,
   distributed,
+}
+
+/// Режим отправки подтверждения операции
+enum DssConfirmationSendingMode {
+  /// Сформированный запрос с подтверждением SDK сразу отправляет на сервер
+  online,
+  /// Приложение сохраняет запрос для возможности отправить его позднее
+  offline,
+}
+
+/// Результат подтверждения операции
+enum DssConfirmState {
+  /// Неизвестно
+  unknown,
+  /// Подтверждено
+  confirmed,
+  /// Отклонено
+  declined,
+}
+
+/// Тип результата операции signMT
+enum DssSignMtResultType {
+  /// Полное подтверждение всех документов
+  success,
+  /// Частичное подтверждение (некоторые документы не подтверждены)
+  partialSuccess,
+  /// Отложенное подписание
+  suspendedConfirm,
 }
 
 class SdkInitRequest {
@@ -378,6 +407,47 @@ class ScanQrResult {
   }
 }
 
+class RemoveAuthRequest {
+  RemoveAuthRequest({
+    required this.kid,
+    required this.deletedKid,
+    required this.forceDelete,
+    this.onlyLocal,
+    this.silent,
+  });
+
+  String kid;
+
+  String deletedKid;
+
+  bool forceDelete;
+
+  bool? onlyLocal;
+
+  bool? silent;
+
+  Object encode() {
+    return <Object?>[
+      kid,
+      deletedKid,
+      forceDelete,
+      onlyLocal,
+      silent,
+    ];
+  }
+
+  static RemoveAuthRequest decode(Object result) {
+    result as List<Object?>;
+    return RemoveAuthRequest(
+      kid: result[0]! as String,
+      deletedKid: result[1]! as String,
+      forceDelete: result[2]! as bool,
+      onlyLocal: result[3] as bool?,
+      silent: result[4] as bool?,
+    );
+  }
+}
+
 class DssKeyProtectionFlags {
   DssKeyProtectionFlags({
     this.fingerprintRequired,
@@ -633,29 +703,91 @@ class DssOperationDescription {
   }
 }
 
-/// Сведения о документе в операции
+/// Сведения о документе
 class DssDocument {
   DssDocument({
-    this.id,
-    this.name,
+    required this.id,
+    required this.title,
+    required this.hash,
+    this.snippet,
+    this.snippetHash,
+    required this.fileSize,
+    required this.pageCount,
+    required this.isPrintableViewAvailable,
+    required this.isSnippetViewAvailable,
+    required this.isRawViewAvailable,
+    this.order,
+    this.fileBytes,
   });
 
-  String? id;
+  /// Идентификатор документа в Сервисе Обработки Документов
+  String id;
 
-  String? name;
+  /// Имя документа
+  String title;
+
+  /// Хэш-значение от документа
+  String hash;
+
+  /// Краткая информация о документе (html)
+  String? snippet;
+
+  /// Хэш-значение от краткой информации о документе
+  String? snippetHash;
+
+  /// Размер документа в байтах
+  int fileSize;
+
+  /// Количество страниц в документе
+  int pageCount;
+
+  /// Флаг доступности печатной формы документа
+  bool isPrintableViewAvailable;
+
+  /// Флаг доступности краткой информации о документе
+  bool isSnippetViewAvailable;
+
+  /// Флаг доступности полной PDF-версии документа
+  bool isRawViewAvailable;
+
+  /// Порядковый номер документа в списке (Только iOS)
+  int? order;
+
+  /// Содержимое файла в виде массива байт (используется для офлайн-подписи, только Android)
+  Uint8List? fileBytes;
 
   Object encode() {
     return <Object?>[
       id,
-      name,
+      title,
+      hash,
+      snippet,
+      snippetHash,
+      fileSize,
+      pageCount,
+      isPrintableViewAvailable,
+      isSnippetViewAvailable,
+      isRawViewAvailable,
+      order,
+      fileBytes,
     ];
   }
 
   static DssDocument decode(Object result) {
     result as List<Object?>;
     return DssDocument(
-      id: result[0] as String?,
-      name: result[1] as String?,
+      id: result[0]! as String,
+      title: result[1]! as String,
+      hash: result[2]! as String,
+      snippet: result[3] as String?,
+      snippetHash: result[4] as String?,
+      fileSize: result[5]! as int,
+      pageCount: result[6]! as int,
+      isPrintableViewAvailable: result[7]! as bool,
+      isSnippetViewAvailable: result[8]! as bool,
+      isRawViewAvailable: result[9]! as bool,
+      order: result[10] as int?,
+      fileBytes: result[11] as Uint8List?,
     );
   }
 }
@@ -850,6 +982,395 @@ class DssOperationsInfo {
   }
 }
 
+/// Сведения о криптопровайдере
+class DssCryptoProviderInfo {
+  DssCryptoProviderInfo({
+    required this.provType,
+    required this.provName,
+    this.priority,
+    this.containerName,
+  });
+
+  /// Тип криптопровайдера
+  int provType;
+
+  /// Имя криптопровайдера
+  String provName;
+
+  /// Приоритет криптопровайдера (Android)
+  int? priority;
+
+  /// Имя ключевого контейнера (iOS)
+  String? containerName;
+
+  Object encode() {
+    return <Object?>[
+      provType,
+      provName,
+      priority,
+      containerName,
+    ];
+  }
+
+  static DssCryptoProviderInfo decode(Object result) {
+    result as List<Object?>;
+    return DssCryptoProviderInfo(
+      provType: result[0]! as int,
+      provName: result[1]! as String,
+      priority: result[2] as int?,
+      containerName: result[3] as String?,
+    );
+  }
+}
+
+/// Политика расширений
+class DssExtensionsPolicy {
+  DssExtensionsPolicy({
+    required this.oid,
+    required this.value,
+    required this.critical,
+  });
+
+  /// Объектный идентификатор расширения
+  String oid;
+
+  /// Значение расширения
+  String value;
+
+  /// Флаг, указывающий, является ли данное расширение критичным
+  bool critical;
+
+  Object encode() {
+    return <Object?>[
+      oid,
+      value,
+      critical,
+    ];
+  }
+
+  static DssExtensionsPolicy decode(Object result) {
+    result as List<Object?>;
+    return DssExtensionsPolicy(
+      oid: result[0]! as String,
+      value: result[1]! as String,
+      critical: result[2]! as bool,
+    );
+  }
+}
+
+/// Политика имени пользователя
+class DssNamePolicy {
+  DssNamePolicy({
+    required this.isRequired,
+    required this.order,
+    required this.oid,
+    required this.name,
+    this.value,
+    required this.stringIdentifier,
+  });
+
+  /// Требуется ли обязательно заполнять данный компонент имени
+  bool isRequired;
+
+  /// Порядковый номер в списке компонентов имени
+  int order;
+
+  /// Объектный идентификатор компонента имени
+  String oid;
+
+  /// Отображаемое имя компонента имени
+  String name;
+
+  /// Значение компонента имени
+  String? value;
+
+  /// Строковый идентификатор компонента имени
+  String stringIdentifier;
+
+  Object encode() {
+    return <Object?>[
+      isRequired,
+      order,
+      oid,
+      name,
+      value,
+      stringIdentifier,
+    ];
+  }
+
+  static DssNamePolicy decode(Object result) {
+    result as List<Object?>;
+    return DssNamePolicy(
+      isRequired: result[0]! as bool,
+      order: result[1]! as int,
+      oid: result[2]! as String,
+      name: result[3]! as String,
+      value: result[4] as String?,
+      stringIdentifier: result[5]! as String,
+    );
+  }
+}
+
+/// Сведения о шаблоне подписи
+class DssProcessingTemplate {
+  DssProcessingTemplate({
+    required this.id,
+    required this.description,
+  });
+
+  /// Идентификатор шаблона подписи
+  int id;
+
+  /// Описание шаблона подписи
+  String description;
+
+  Object encode() {
+    return <Object?>[
+      id,
+      description,
+    ];
+  }
+
+  static DssProcessingTemplate decode(Object result) {
+    result as List<Object?>;
+    return DssProcessingTemplate(
+      id: result[0]! as int,
+      description: result[1]! as String,
+    );
+  }
+}
+
+/// Политика обработки запросов на сертификат
+class DssCaPolicy {
+  DssCaPolicy({
+    required this.id,
+    this.name,
+    required this.active,
+    required this.allowUserMode,
+    required this.snChangesEnable,
+    required this.namePolicy,
+    this.caType,
+    this.validationMode,
+    this.showInUI,
+    this.extensionsPolicy,
+    this.ekuTemplates,
+    this.cryptoProviderInfos,
+    this.supportedFlows,
+    this.mdipServiceAddress,
+    this.mdipPreferedEnrollId,
+  });
+
+  /// Идентификатор обработчика запросов на сертификат
+  int id;
+
+  /// Отображаемое имя обработчика запросов на сертификат
+  String? name;
+
+  /// Доступен ли УЦ для создания запросов
+  bool active;
+
+  /// Разрешить подпись запросов на сертификат действующим ключом Пользователя
+  bool allowUserMode;
+
+  /// Разрешить изменять имя субъекта в сертификате
+  bool snChangesEnable;
+
+  /// Массив компонентов различительного имени пользователя
+  List<DssNamePolicy> namePolicy;
+
+  /// Тип обработчика запросов на сертификат
+  /// (CryptoProCA15Enroll, CryptoProCA20Enroll, DSSOutOfBandEnroll)
+  String? caType;
+
+  /// Режим получения статуса сертификата
+  /// (CertificateAuthority, ChainOnline, ChainOffline, NoCheck, OCSP)
+  String? validationMode;
+
+  /// Отображается ли обработчик в веб-интерфейсе (Android)
+  bool? showInUI;
+
+  /// Политики расширений
+  List<DssExtensionsPolicy>? extensionsPolicy;
+
+  /// Массив шаблонов сертификатов (ключ — имя шаблона, значение — список OID)
+  Map<String, Object>? ekuTemplates;
+
+  /// Массив сведений о криптопровайдерах (ключ — тип, значение — список провайдеров)
+  Map<String, Object>? cryptoProviderInfos;
+
+  /// Список поддерживаемых сценариев (Goskey, Renew) (Android)
+  List<String>? supportedFlows;
+
+  /// Адрес сервиса модуля дистанционной идентификации (Android)
+  String? mdipServiceAddress;
+
+  /// Предпочтительный идентификатор обработчика (Android)
+  String? mdipPreferedEnrollId;
+
+  Object encode() {
+    return <Object?>[
+      id,
+      name,
+      active,
+      allowUserMode,
+      snChangesEnable,
+      namePolicy,
+      caType,
+      validationMode,
+      showInUI,
+      extensionsPolicy,
+      ekuTemplates,
+      cryptoProviderInfos,
+      supportedFlows,
+      mdipServiceAddress,
+      mdipPreferedEnrollId,
+    ];
+  }
+
+  static DssCaPolicy decode(Object result) {
+    result as List<Object?>;
+    return DssCaPolicy(
+      id: result[0]! as int,
+      name: result[1] as String?,
+      active: result[2]! as bool,
+      allowUserMode: result[3]! as bool,
+      snChangesEnable: result[4]! as bool,
+      namePolicy: (result[5] as List<Object?>?)!.cast<DssNamePolicy>(),
+      caType: result[6] as String?,
+      validationMode: result[7] as String?,
+      showInUI: result[8] as bool?,
+      extensionsPolicy: (result[9] as List<Object?>?)?.cast<DssExtensionsPolicy>(),
+      ekuTemplates: (result[10] as Map<Object?, Object?>?)?.cast<String, Object>(),
+      cryptoProviderInfos: (result[11] as Map<Object?, Object?>?)?.cast<String, Object>(),
+      supportedFlows: (result[12] as List<Object?>?)?.cast<String>(),
+      mdipServiceAddress: result[13] as String?,
+      mdipPreferedEnrollId: result[14] as String?,
+    );
+  }
+}
+
+/// Параметры подписи (политика взаимодействия с Сервисом Подписи)
+class DssCaParams {
+  DssCaParams({
+    required this.caPolicies,
+    required this.processingTemplates,
+    this.isMobileKeysSupported,
+    this.isDskKeysSupported,
+    this.isServerKeysSupported,
+  });
+
+  /// Массив политик обработки запросов на сертификат
+  List<DssCaPolicy> caPolicies;
+
+  /// Массив шаблонов подписи
+  List<DssProcessingTemplate> processingTemplates;
+
+  /// Разрешено ли создание ключей на мобильном устройстве
+  bool? isMobileKeysSupported;
+
+  /// Разрешено ли создание распределённых ключей
+  bool? isDskKeysSupported;
+
+  /// Разрешено ли создание распределённых ключей
+  bool? isServerKeysSupported;
+
+  Object encode() {
+    return <Object?>[
+      caPolicies,
+      processingTemplates,
+      isMobileKeysSupported,
+      isDskKeysSupported,
+      isServerKeysSupported,
+    ];
+  }
+
+  static DssCaParams decode(Object result) {
+    result as List<Object?>;
+    return DssCaParams(
+      caPolicies: (result[0] as List<Object?>?)!.cast<DssCaPolicy>(),
+      processingTemplates: (result[1] as List<Object?>?)!.cast<DssProcessingTemplate>(),
+      isMobileKeysSupported: result[2] as bool?,
+      isDskKeysSupported: result[3] as bool?,
+      isServerKeysSupported: result[4] as bool?,
+    );
+  }
+}
+
+/// Сведения о криптопровайдере
+class CryptoProviderInfo {
+  CryptoProviderInfo({
+    required this.containerName,
+    this.fullContainerName,
+    required this.provType,
+    this.provName,
+    required this.keyContainerType,
+    required this.isExportable,
+    this.puk,
+    this.pin,
+    required this.savePin,
+  });
+
+  /// Имя ключевого контейнера
+  String containerName;
+
+  /// Полное имя ключевого контейнера (только Android)
+  String? fullContainerName;
+
+  /// Тип криптопровайдера (по умолчанию 80)
+  int provType;
+
+  /// Имя криптопровайдера
+  String? provName;
+
+  /// Тип ключевого контейнера
+  DSSCryptoKeyContainerType keyContainerType;
+
+  /// Флаг экспортируемости ключа. По умолчанию 0 (неэкспортируемый).
+  /// Только Android.
+  int isExportable;
+
+  /// PUK-код внешнего носителя (если ключ будет сохранен на нем).
+  /// Только Android.
+  String? puk;
+
+  /// PIN-код внешнего носителя (если ключ будет сохранен на нем).
+  /// Только Android.
+  String? pin;
+
+  /// Сохранять PIN-код внешнего носителя на время действия сессии.
+  /// По умолчанию false. Только Android.
+  bool savePin;
+
+  Object encode() {
+    return <Object?>[
+      containerName,
+      fullContainerName,
+      provType,
+      provName,
+      keyContainerType,
+      isExportable,
+      puk,
+      pin,
+      savePin,
+    ];
+  }
+
+  static CryptoProviderInfo decode(Object result) {
+    result as List<Object?>;
+    return CryptoProviderInfo(
+      containerName: result[0]! as String,
+      fullContainerName: result[1] as String?,
+      provType: result[2]! as int,
+      provName: result[3] as String?,
+      keyContainerType: result[4]! as DSSCryptoKeyContainerType,
+      isExportable: result[5]! as int,
+      puk: result[6] as String?,
+      pin: result[7] as String?,
+      savePin: result[8]! as bool,
+    );
+  }
+}
+
 class DSSCertificate {
   DSSCertificate({
     this.type,
@@ -1027,6 +1548,583 @@ class DeleteCertRequest {
   }
 }
 
+/// Параметры для создания запроса на сертификат (серверный ключ / распределённый)
+class GetCertRequest {
+  GetCertRequest({
+    required this.kid,
+    required this.caId,
+    required this.tId,
+    required this.dn,
+    this.reqParams,
+    this.silent,
+  });
+
+  /// Идентификатор набора ключей пользователя
+  String kid;
+
+  /// Идентификатор обработчика УЦ
+  int caId;
+
+  /// Идентификатор шаблона сертификата
+  String tId;
+
+  /// Различительное имя субъекта: {"OID компонента имени": "Значение компонента имени"}
+  Map<String, String> dn;
+
+  /// Дополнительные параметры запроса на сертификат (iOS: reqParams)
+  Map<String, String>? reqParams;
+
+  /// Флаг для скрытия/отображения диалоговых окон SDK (iOS only, silent mode)
+  bool? silent;
+
+  Object encode() {
+    return <Object?>[
+      kid,
+      caId,
+      tId,
+      dn,
+      reqParams,
+      silent,
+    ];
+  }
+
+  static GetCertRequest decode(Object result) {
+    result as List<Object?>;
+    return GetCertRequest(
+      kid: result[0]! as String,
+      caId: result[1]! as int,
+      tId: result[2]! as String,
+      dn: (result[3] as Map<Object?, Object?>?)!.cast<String, String>(),
+      reqParams: (result[4] as Map<Object?, Object?>?)?.cast<String, String>(),
+      silent: result[5] as bool?,
+    );
+  }
+}
+
+/// Учётные данные для криптопровайдера (внешний носитель)
+/// iOS: DSSCryptoProviderInfoCreds
+class CryptoProviderCreds {
+  CryptoProviderCreds({
+    this.pin,
+    this.puk,
+    this.isSilent,
+  });
+
+  /// ПИН-код внешнего носителя / ПИН-код на контейнер сертификата
+  String? pin;
+
+  /// Код инициализации внешнего носителя
+  String? puk;
+
+  /// Доступность ввода учетных данных в silent-режиме (True — только для УНЭП)
+  bool? isSilent;
+
+  Object encode() {
+    return <Object?>[
+      pin,
+      puk,
+      isSilent,
+    ];
+  }
+
+  static CryptoProviderCreds decode(Object result) {
+    result as List<Object?>;
+    return CryptoProviderCreds(
+      pin: result[0] as String?,
+      puk: result[1] as String?,
+      isSilent: result[2] as bool?,
+    );
+  }
+}
+
+/// Параметры для подписания запроса на сертификат
+class SignRequestRequest {
+  SignRequestRequest({
+    required this.kid,
+    required this.certificate,
+    this.providerInfo,
+    this.creds,
+    this.silent,
+  });
+
+  /// Идентификатор набора ключей пользователя
+  String kid;
+
+  /// Сведения о созданном неподписанном запросе на сертификат
+  DSSCertificate certificate;
+
+  /// Сведения о криптопровайдере
+  CryptoProviderInfo? providerInfo;
+
+  /// Учётные данные для криптопровайдера (pin, puk, isSilent)
+  /// Android: pin передаётся отдельно; iOS: DSSCryptoProviderInfoCreds
+  CryptoProviderCreds? creds;
+
+  /// Флаг для скрытия/отображения диалоговых окон SDK (silent mode).
+  /// Используется только для создания УНЭП. Не используется по умолчанию.
+  bool? silent;
+
+  Object encode() {
+    return <Object?>[
+      kid,
+      certificate,
+      providerInfo,
+      creds,
+      silent,
+    ];
+  }
+
+  static SignRequestRequest decode(Object result) {
+    result as List<Object?>;
+    return SignRequestRequest(
+      kid: result[0]! as String,
+      certificate: result[1]! as DSSCertificate,
+      providerInfo: result[2] as CryptoProviderInfo?,
+      creds: result[3] as CryptoProviderCreds?,
+      silent: result[4] as bool?,
+    );
+  }
+}
+
+/// Результат подписания запроса на сертификат
+class SignRequestResult {
+  SignRequestResult({
+    this.certificate,
+    this.signedRequest,
+  });
+
+  /// Сведения о созданном запросе на сертификат или сертификате.
+  /// Заполняется на Android (signRequest отправляет подписанный запрос на сервер).
+  DSSCertificate? certificate;
+
+  /// Подписанный запрос на сертификат, закодированный в Base64.
+  /// Заполняется на iOS (signRequest НЕ отправляет на сервер).
+  String? signedRequest;
+
+  Object encode() {
+    return <Object?>[
+      certificate,
+      signedRequest,
+    ];
+  }
+
+  static SignRequestResult decode(Object result) {
+    result as List<Object?>;
+    return SignRequestResult(
+      certificate: result[0] as DSSCertificate?,
+      signedRequest: result[1] as String?,
+    );
+  }
+}
+
+/// Параметры для отправки подписанного запроса на сертификат на сервер
+class SendSignRequestRequest {
+  SendSignRequestRequest({
+    required this.kid,
+    this.certificate,
+    this.signCertRequest,
+    this.creds,
+    this.providerInfo,
+    this.caId,
+    this.rid,
+    this.silent,
+  });
+
+  /// Идентификатор набора ключей пользователя
+  String kid;
+
+  /// Сведения о запросе на сертификат (Android)
+  DSSCertificate? certificate;
+
+  /// Подписанный запрос на сертификат, закодированный в Base64
+  /// Android: signCertRequest (ByteArray?)
+  /// iOS: content (Data)
+  String? signCertRequest;
+
+  /// Учётные данные (pin на ключевой контейнер) (Android)
+  CryptoProviderCreds? creds;
+
+  /// Сведения о криптопровайдере (Android)
+  CryptoProviderInfo? providerInfo;
+
+  /// Идентификатор обработчика УЦ (iOS)
+  int? caId;
+
+  /// Идентификатор запроса на сертификат (iOS)
+  String? rid;
+
+  /// Флаг для скрытия/отображения диалоговых окон SDK (iOS: silent mode).
+  /// Не используется по умолчанию.
+  bool? silent;
+
+  Object encode() {
+    return <Object?>[
+      kid,
+      certificate,
+      signCertRequest,
+      creds,
+      providerInfo,
+      caId,
+      rid,
+      silent,
+    ];
+  }
+
+  static SendSignRequestRequest decode(Object result) {
+    result as List<Object?>;
+    return SendSignRequestRequest(
+      kid: result[0]! as String,
+      certificate: result[1] as DSSCertificate?,
+      signCertRequest: result[2] as String?,
+      creds: result[3] as CryptoProviderCreds?,
+      providerInfo: result[4] as CryptoProviderInfo?,
+      caId: result[5] as int?,
+      rid: result[6] as String?,
+      silent: result[7] as bool?,
+    );
+  }
+}
+
+/// Параметры для установки сертификата в ключевой контейнер
+class InstallCertificateRequest {
+  InstallCertificateRequest({
+    required this.certificate,
+    this.kid,
+    this.rid,
+    this.crtBytes,
+    this.creds,
+  });
+
+  /// Сведения о сертификате / запросе на сертификат, который требуется установить
+  /// Android: certificate (Certificate) — сведения о запросе
+  /// iOS: cert (DSSCertificate) — сведения и содержимое сертификата
+  DSSCertificate certificate;
+
+  /// Идентификатор набора ключей пользователя (iOS)
+  String? kid;
+
+  /// Идентификатор запроса на сертификат (iOS)
+  String? rid;
+
+  /// Сертификат, который требуется установить, закодированный в Base64 (Android: crtBytes)
+  String? crtBytes;
+
+  /// Учётные данные (pin на контейнер закрытого ключа)
+  /// Android: pin; iOS: DSSCryptoProviderInfoCreds (pin, puk, isSilent)
+  CryptoProviderCreds? creds;
+
+  Object encode() {
+    return <Object?>[
+      certificate,
+      kid,
+      rid,
+      crtBytes,
+      creds,
+    ];
+  }
+
+  static InstallCertificateRequest decode(Object result) {
+    result as List<Object?>;
+    return InstallCertificateRequest(
+      certificate: result[0]! as DSSCertificate,
+      kid: result[1] as String?,
+      rid: result[2] as String?,
+      crtBytes: result[3] as String?,
+      creds: result[4] as CryptoProviderCreds?,
+    );
+  }
+}
+
+/// Сведения о подтверждённом документе
+class DssConfirmedDocument {
+  DssConfirmedDocument({
+    required this.id,
+    required this.hash,
+  });
+
+  /// Идентификатор документа
+  String id;
+
+  /// Хэш-значение от документа
+  String hash;
+
+  Object encode() {
+    return <Object?>[
+      id,
+      hash,
+    ];
+  }
+
+  static DssConfirmedDocument decode(Object result) {
+    result as List<Object?>;
+    return DssConfirmedDocument(
+      id: result[0]! as String,
+      hash: result[1]! as String,
+    );
+  }
+}
+
+/// Сведения об отклонённом документе
+class DssDeclinedDocument {
+  DssDeclinedDocument({
+    required this.id,
+    required this.hash,
+  });
+
+  /// Идентификатор документа
+  String id;
+
+  /// Хэш-значение от документа
+  String hash;
+
+  Object encode() {
+    return <Object?>[
+      id,
+      hash,
+    ];
+  }
+
+  static DssDeclinedDocument decode(Object result) {
+    result as List<Object?>;
+    return DssDeclinedDocument(
+      id: result[0]! as String,
+      hash: result[1]! as String,
+    );
+  }
+}
+
+/// Сведения о подтверждаемой операции
+class DssApprovedOperation {
+  DssApprovedOperation({
+    required this.id,
+    required this.type,
+    required this.caption,
+    this.parameters,
+    this.confirmedDocuments,
+    this.declinedDocuments,
+    required this.timeStamp,
+  });
+
+  /// Идентификатор операции на Сервисе Операций
+  String id;
+
+  /// Тип операции
+  String type;
+
+  /// Описание операции
+  String caption;
+
+  /// Дополнительные параметры операции
+  Map<String?, String?>? parameters;
+
+  /// Массив сведений о подтвержденных документах
+  List<DssConfirmedDocument?>? confirmedDocuments;
+
+  /// Массив сведений об отклоненных документах
+  List<DssDeclinedDocument?>? declinedDocuments;
+
+  /// Штамп времени
+  int timeStamp;
+
+  Object encode() {
+    return <Object?>[
+      id,
+      type,
+      caption,
+      parameters,
+      confirmedDocuments,
+      declinedDocuments,
+      timeStamp,
+    ];
+  }
+
+  static DssApprovedOperation decode(Object result) {
+    result as List<Object?>;
+    return DssApprovedOperation(
+      id: result[0]! as String,
+      type: result[1]! as String,
+      caption: result[2]! as String,
+      parameters: (result[3] as Map<Object?, Object?>?)?.cast<String?, String?>(),
+      confirmedDocuments: (result[4] as List<Object?>?)?.cast<DssConfirmedDocument?>(),
+      declinedDocuments: (result[5] as List<Object?>?)?.cast<DssDeclinedDocument?>(),
+      timeStamp: result[6]! as int,
+    );
+  }
+}
+
+/// Запрос на подтверждение/отклонение операции, созданной на сервере
+class DssApproveRequestMt {
+  DssApproveRequestMt({
+    required this.approvedOperation,
+    required this.hmac,
+  });
+
+  /// Сведения о подтверждаемой операции
+  DssApprovedOperation approvedOperation;
+
+  /// Код аутентификации операции (HMAC)
+  String hmac;
+
+  Object encode() {
+    return <Object?>[
+      approvedOperation,
+      hmac,
+    ];
+  }
+
+  static DssApproveRequestMt decode(Object result) {
+    result as List<Object?>;
+    return DssApproveRequestMt(
+      approvedOperation: result[0]! as DssApprovedOperation,
+      hmac: result[1]! as String,
+    );
+  }
+}
+
+/// Результат выполнения операции signMT
+class DssSignMtResult {
+  DssSignMtResult({
+    required this.resultType,
+    this.confirmState,
+    this.approveRequest,
+    this.documentsWithErrors,
+    this.documentErrors,
+  });
+
+  /// Тип результата
+  DssSignMtResultType resultType;
+
+  /// Результат подтверждения операции (для success и partialSuccess)
+  DssConfirmState? confirmState;
+
+  /// Запрос на подтверждение/отклонение (для отложенного подписания - suspendedConfirm)
+  DssApproveRequestMt? approveRequest;
+
+  /// Список документов с ошибками (для partialSuccess)
+  List<DssDocument?>? documentsWithErrors;
+
+  /// Сведения об ошибках: ключ - id документа, значение - описание ошибки (Только iOS)
+  Map<String?, String?>? documentErrors;
+
+  Object encode() {
+    return <Object?>[
+      resultType,
+      confirmState,
+      approveRequest,
+      documentsWithErrors,
+      documentErrors,
+    ];
+  }
+
+  static DssSignMtResult decode(Object result) {
+    result as List<Object?>;
+    return DssSignMtResult(
+      resultType: result[0]! as DssSignMtResultType,
+      confirmState: result[1] as DssConfirmState?,
+      approveRequest: result[2] as DssApproveRequestMt?,
+      documentsWithErrors: (result[3] as List<Object?>?)?.cast<DssDocument?>(),
+      documentErrors: (result[4] as Map<Object?, Object?>?)?.cast<String?, String?>(),
+    );
+  }
+}
+
+/// Универсальная модель сведений о ключевом контейнере для обеих платформ
+class DSSSigningKeyInfo {
+  DSSSigningKeyInfo({
+    this.uid,
+    this.containerName,
+    this.containerFullName,
+    this.cid,
+    this.rid,
+    required this.isInstalled,
+    this.certBase64,
+    this.keyContainerType,
+    this.pin,
+    this.providerInfo,
+    this.kid,
+    this.providerName,
+    this.providerType,
+    this.isExportable,
+    this.createdAtMs,
+    this.installedAtMs,
+  });
+
+  String? uid;
+
+  String? containerName;
+
+  String? containerFullName;
+
+  String? cid;
+
+  String? rid;
+
+  bool isInstalled;
+
+  String? certBase64;
+
+  DSSCryptoKeyContainerType? keyContainerType;
+
+  String? pin;
+
+  CryptoProviderInfo? providerInfo;
+
+  String? kid;
+
+  String? providerName;
+
+  int? providerType;
+
+  bool? isExportable;
+
+  int? createdAtMs;
+
+  int? installedAtMs;
+
+  Object encode() {
+    return <Object?>[
+      uid,
+      containerName,
+      containerFullName,
+      cid,
+      rid,
+      isInstalled,
+      certBase64,
+      keyContainerType,
+      pin,
+      providerInfo,
+      kid,
+      providerName,
+      providerType,
+      isExportable,
+      createdAtMs,
+      installedAtMs,
+    ];
+  }
+
+  static DSSSigningKeyInfo decode(Object result) {
+    result as List<Object?>;
+    return DSSSigningKeyInfo(
+      uid: result[0] as String?,
+      containerName: result[1] as String?,
+      containerFullName: result[2] as String?,
+      cid: result[3] as String?,
+      rid: result[4] as String?,
+      isInstalled: result[5]! as bool,
+      certBase64: result[6] as String?,
+      keyContainerType: result[7] as DSSCryptoKeyContainerType?,
+      pin: result[8] as String?,
+      providerInfo: result[9] as CryptoProviderInfo?,
+      kid: result[10] as String?,
+      providerName: result[11] as String?,
+      providerType: result[12] as int?,
+      isExportable: result[13] as bool?,
+      createdAtMs: result[14] as int?,
+      installedAtMs: result[15] as int?,
+    );
+  }
+}
+
 
 class _PigeonCodec extends StandardMessageCodec {
   const _PigeonCodec();
@@ -1050,59 +2148,128 @@ class _PigeonCodec extends StandardMessageCodec {
     }    else if (value is DSSCryptoKeyContainerType) {
       buffer.putUint8(133);
       writeValue(buffer, value.index);
-    }    else if (value is SdkInitRequest) {
+    }    else if (value is DssConfirmationSendingMode) {
       buffer.putUint8(134);
-      writeValue(buffer, value.encode());
-    }    else if (value is SdkInitResult) {
+      writeValue(buffer, value.index);
+    }    else if (value is DssConfirmState) {
       buffer.putUint8(135);
-      writeValue(buffer, value.encode());
-    }    else if (value is DssUser) {
+      writeValue(buffer, value.index);
+    }    else if (value is DssSignMtResultType) {
       buffer.putUint8(136);
-      writeValue(buffer, value.encode());
-    }    else if (value is DSSRegisterInfo) {
+      writeValue(buffer, value.index);
+    }    else if (value is SdkInitRequest) {
       buffer.putUint8(137);
       writeValue(buffer, value.encode());
-    }    else if (value is QrData) {
+    }    else if (value is SdkInitResult) {
       buffer.putUint8(138);
       writeValue(buffer, value.encode());
-    }    else if (value is RawQr) {
+    }    else if (value is DssUser) {
       buffer.putUint8(139);
       writeValue(buffer, value.encode());
-    }    else if (value is ScanQrResult) {
+    }    else if (value is DSSRegisterInfo) {
       buffer.putUint8(140);
       writeValue(buffer, value.encode());
-    }    else if (value is DssKeyProtectionFlags) {
+    }    else if (value is QrData) {
       buffer.putUint8(141);
       writeValue(buffer, value.encode());
-    }    else if (value is DssPolicyPayload) {
+    }    else if (value is RawQr) {
       buffer.putUint8(142);
       writeValue(buffer, value.encode());
-    }    else if (value is GetOperationsRequest) {
+    }    else if (value is ScanQrResult) {
       buffer.putUint8(143);
       writeValue(buffer, value.encode());
-    }    else if (value is DssAppSystemDescription) {
+    }    else if (value is RemoveAuthRequest) {
       buffer.putUint8(144);
       writeValue(buffer, value.encode());
-    }    else if (value is DssOperationDescription) {
+    }    else if (value is DssKeyProtectionFlags) {
       buffer.putUint8(145);
       writeValue(buffer, value.encode());
-    }    else if (value is DssDocument) {
+    }    else if (value is DssPolicyPayload) {
       buffer.putUint8(146);
       writeValue(buffer, value.encode());
-    }    else if (value is DssOperationParameters) {
+    }    else if (value is GetOperationsRequest) {
       buffer.putUint8(147);
       writeValue(buffer, value.encode());
-    }    else if (value is DssOperation) {
+    }    else if (value is DssAppSystemDescription) {
       buffer.putUint8(148);
       writeValue(buffer, value.encode());
-    }    else if (value is DssOperationsInfo) {
+    }    else if (value is DssOperationDescription) {
       buffer.putUint8(149);
       writeValue(buffer, value.encode());
-    }    else if (value is DSSCertificate) {
+    }    else if (value is DssDocument) {
       buffer.putUint8(150);
       writeValue(buffer, value.encode());
-    }    else if (value is DeleteCertRequest) {
+    }    else if (value is DssOperationParameters) {
       buffer.putUint8(151);
+      writeValue(buffer, value.encode());
+    }    else if (value is DssOperation) {
+      buffer.putUint8(152);
+      writeValue(buffer, value.encode());
+    }    else if (value is DssOperationsInfo) {
+      buffer.putUint8(153);
+      writeValue(buffer, value.encode());
+    }    else if (value is DssCryptoProviderInfo) {
+      buffer.putUint8(154);
+      writeValue(buffer, value.encode());
+    }    else if (value is DssExtensionsPolicy) {
+      buffer.putUint8(155);
+      writeValue(buffer, value.encode());
+    }    else if (value is DssNamePolicy) {
+      buffer.putUint8(156);
+      writeValue(buffer, value.encode());
+    }    else if (value is DssProcessingTemplate) {
+      buffer.putUint8(157);
+      writeValue(buffer, value.encode());
+    }    else if (value is DssCaPolicy) {
+      buffer.putUint8(158);
+      writeValue(buffer, value.encode());
+    }    else if (value is DssCaParams) {
+      buffer.putUint8(159);
+      writeValue(buffer, value.encode());
+    }    else if (value is CryptoProviderInfo) {
+      buffer.putUint8(160);
+      writeValue(buffer, value.encode());
+    }    else if (value is DSSCertificate) {
+      buffer.putUint8(161);
+      writeValue(buffer, value.encode());
+    }    else if (value is DeleteCertRequest) {
+      buffer.putUint8(162);
+      writeValue(buffer, value.encode());
+    }    else if (value is GetCertRequest) {
+      buffer.putUint8(163);
+      writeValue(buffer, value.encode());
+    }    else if (value is CryptoProviderCreds) {
+      buffer.putUint8(164);
+      writeValue(buffer, value.encode());
+    }    else if (value is SignRequestRequest) {
+      buffer.putUint8(165);
+      writeValue(buffer, value.encode());
+    }    else if (value is SignRequestResult) {
+      buffer.putUint8(166);
+      writeValue(buffer, value.encode());
+    }    else if (value is SendSignRequestRequest) {
+      buffer.putUint8(167);
+      writeValue(buffer, value.encode());
+    }    else if (value is InstallCertificateRequest) {
+      buffer.putUint8(168);
+      writeValue(buffer, value.encode());
+    }    else if (value is DssConfirmedDocument) {
+      buffer.putUint8(169);
+      writeValue(buffer, value.encode());
+    }    else if (value is DssDeclinedDocument) {
+      buffer.putUint8(170);
+      writeValue(buffer, value.encode());
+    }    else if (value is DssApprovedOperation) {
+      buffer.putUint8(171);
+      writeValue(buffer, value.encode());
+    }    else if (value is DssApproveRequestMt) {
+      buffer.putUint8(172);
+      writeValue(buffer, value.encode());
+    }    else if (value is DssSignMtResult) {
+      buffer.putUint8(173);
+      writeValue(buffer, value.encode());
+    }    else if (value is DSSSigningKeyInfo) {
+      buffer.putUint8(174);
       writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
@@ -1128,41 +2295,90 @@ class _PigeonCodec extends StandardMessageCodec {
         final int? value = readValue(buffer) as int?;
         return value == null ? null : DSSCryptoKeyContainerType.values[value];
       case 134: 
-        return SdkInitRequest.decode(readValue(buffer)!);
+        final int? value = readValue(buffer) as int?;
+        return value == null ? null : DssConfirmationSendingMode.values[value];
       case 135: 
-        return SdkInitResult.decode(readValue(buffer)!);
+        final int? value = readValue(buffer) as int?;
+        return value == null ? null : DssConfirmState.values[value];
       case 136: 
-        return DssUser.decode(readValue(buffer)!);
+        final int? value = readValue(buffer) as int?;
+        return value == null ? null : DssSignMtResultType.values[value];
       case 137: 
-        return DSSRegisterInfo.decode(readValue(buffer)!);
+        return SdkInitRequest.decode(readValue(buffer)!);
       case 138: 
-        return QrData.decode(readValue(buffer)!);
+        return SdkInitResult.decode(readValue(buffer)!);
       case 139: 
-        return RawQr.decode(readValue(buffer)!);
+        return DssUser.decode(readValue(buffer)!);
       case 140: 
-        return ScanQrResult.decode(readValue(buffer)!);
+        return DSSRegisterInfo.decode(readValue(buffer)!);
       case 141: 
-        return DssKeyProtectionFlags.decode(readValue(buffer)!);
+        return QrData.decode(readValue(buffer)!);
       case 142: 
-        return DssPolicyPayload.decode(readValue(buffer)!);
+        return RawQr.decode(readValue(buffer)!);
       case 143: 
-        return GetOperationsRequest.decode(readValue(buffer)!);
+        return ScanQrResult.decode(readValue(buffer)!);
       case 144: 
-        return DssAppSystemDescription.decode(readValue(buffer)!);
+        return RemoveAuthRequest.decode(readValue(buffer)!);
       case 145: 
-        return DssOperationDescription.decode(readValue(buffer)!);
+        return DssKeyProtectionFlags.decode(readValue(buffer)!);
       case 146: 
-        return DssDocument.decode(readValue(buffer)!);
+        return DssPolicyPayload.decode(readValue(buffer)!);
       case 147: 
-        return DssOperationParameters.decode(readValue(buffer)!);
+        return GetOperationsRequest.decode(readValue(buffer)!);
       case 148: 
-        return DssOperation.decode(readValue(buffer)!);
+        return DssAppSystemDescription.decode(readValue(buffer)!);
       case 149: 
-        return DssOperationsInfo.decode(readValue(buffer)!);
+        return DssOperationDescription.decode(readValue(buffer)!);
       case 150: 
-        return DSSCertificate.decode(readValue(buffer)!);
+        return DssDocument.decode(readValue(buffer)!);
       case 151: 
+        return DssOperationParameters.decode(readValue(buffer)!);
+      case 152: 
+        return DssOperation.decode(readValue(buffer)!);
+      case 153: 
+        return DssOperationsInfo.decode(readValue(buffer)!);
+      case 154: 
+        return DssCryptoProviderInfo.decode(readValue(buffer)!);
+      case 155: 
+        return DssExtensionsPolicy.decode(readValue(buffer)!);
+      case 156: 
+        return DssNamePolicy.decode(readValue(buffer)!);
+      case 157: 
+        return DssProcessingTemplate.decode(readValue(buffer)!);
+      case 158: 
+        return DssCaPolicy.decode(readValue(buffer)!);
+      case 159: 
+        return DssCaParams.decode(readValue(buffer)!);
+      case 160: 
+        return CryptoProviderInfo.decode(readValue(buffer)!);
+      case 161: 
+        return DSSCertificate.decode(readValue(buffer)!);
+      case 162: 
         return DeleteCertRequest.decode(readValue(buffer)!);
+      case 163: 
+        return GetCertRequest.decode(readValue(buffer)!);
+      case 164: 
+        return CryptoProviderCreds.decode(readValue(buffer)!);
+      case 165: 
+        return SignRequestRequest.decode(readValue(buffer)!);
+      case 166: 
+        return SignRequestResult.decode(readValue(buffer)!);
+      case 167: 
+        return SendSignRequestRequest.decode(readValue(buffer)!);
+      case 168: 
+        return InstallCertificateRequest.decode(readValue(buffer)!);
+      case 169: 
+        return DssConfirmedDocument.decode(readValue(buffer)!);
+      case 170: 
+        return DssDeclinedDocument.decode(readValue(buffer)!);
+      case 171: 
+        return DssApprovedOperation.decode(readValue(buffer)!);
+      case 172: 
+        return DssApproveRequestMt.decode(readValue(buffer)!);
+      case 173: 
+        return DssSignMtResult.decode(readValue(buffer)!);
+      case 174: 
+        return DSSSigningKeyInfo.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
     }
@@ -1390,6 +2606,29 @@ class AuthHostApi {
       return;
     }
   }
+
+  /// Удаление устройства пользователя и его вектора аутентификации.
+  Future<void> removeAuth(RemoveAuthRequest request) async {
+    final String pigeonVar_channelName = 'dev.flutter.pigeon.cpkey.AuthHostApi.removeAuth$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final List<Object?>? pigeonVar_replyList =
+        await pigeonVar_channel.send(<Object?>[request]) as List<Object?>?;
+    if (pigeonVar_replyList == null) {
+      throw _createConnectionError(pigeonVar_channelName);
+    } else if (pigeonVar_replyList.length > 1) {
+      throw PlatformException(
+        code: pigeonVar_replyList[0]! as String,
+        message: pigeonVar_replyList[1] as String?,
+        details: pigeonVar_replyList[2],
+      );
+    } else {
+      return;
+    }
+  }
 }
 
 class PolicyHostApi {
@@ -1460,6 +2699,34 @@ class PolicyHostApi {
       return (pigeonVar_replyList[0] as DssOperationsInfo?)!;
     }
   }
+
+  /// Запрос с сервера параметров подписи
+  Future<DssCaParams> getCaParams(String kid) async {
+    final String pigeonVar_channelName = 'dev.flutter.pigeon.cpkey.PolicyHostApi.getCaParams$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final List<Object?>? pigeonVar_replyList =
+        await pigeonVar_channel.send(<Object?>[kid]) as List<Object?>?;
+    if (pigeonVar_replyList == null) {
+      throw _createConnectionError(pigeonVar_channelName);
+    } else if (pigeonVar_replyList.length > 1) {
+      throw PlatformException(
+        code: pigeonVar_replyList[0]! as String,
+        message: pigeonVar_replyList[1] as String?,
+        details: pigeonVar_replyList[2],
+      );
+    } else if (pigeonVar_replyList[0] == null) {
+      throw PlatformException(
+        code: 'null-error',
+        message: 'Host platform returned null value for non-null return value.',
+      );
+    } else {
+      return (pigeonVar_replyList[0] as DssCaParams?)!;
+    }
+  }
 }
 
 class CertHostApi {
@@ -1523,6 +2790,249 @@ class CertHostApi {
       );
     } else {
       return;
+    }
+  }
+
+  /// Создание запроса на сертификат с ключом на сервере (cloud / distributed)
+  /// Android: Cert.getCert(...)
+  /// iOS: createUnsignedCert(...)
+  Future<DSSCertificate> getCert(GetCertRequest request) async {
+    final String pigeonVar_channelName = 'dev.flutter.pigeon.cpkey.CertHostApi.getCert$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final List<Object?>? pigeonVar_replyList =
+        await pigeonVar_channel.send(<Object?>[request]) as List<Object?>?;
+    if (pigeonVar_replyList == null) {
+      throw _createConnectionError(pigeonVar_channelName);
+    } else if (pigeonVar_replyList.length > 1) {
+      throw PlatformException(
+        code: pigeonVar_replyList[0]! as String,
+        message: pigeonVar_replyList[1] as String?,
+        details: pigeonVar_replyList[2],
+      );
+    } else if (pigeonVar_replyList[0] == null) {
+      throw PlatformException(
+        code: 'null-error',
+        message: 'Host platform returned null value for non-null return value.',
+      );
+    } else {
+      return (pigeonVar_replyList[0] as DSSCertificate?)!;
+    }
+  }
+
+  /// Создание неподписанного запроса на сертификат и отправка его на сервер для синхронизации.
+  /// Android: getClientCert(context, kid, caId, tId, dn, callback)
+  /// iOS: createUnsignedCert(kid, caId, tId, dn, reqParams, silent)
+  Future<DSSCertificate> getClientCert(GetCertRequest request) async {
+    final String pigeonVar_channelName = 'dev.flutter.pigeon.cpkey.CertHostApi.getClientCert$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final List<Object?>? pigeonVar_replyList =
+        await pigeonVar_channel.send(<Object?>[request]) as List<Object?>?;
+    if (pigeonVar_replyList == null) {
+      throw _createConnectionError(pigeonVar_channelName);
+    } else if (pigeonVar_replyList.length > 1) {
+      throw PlatformException(
+        code: pigeonVar_replyList[0]! as String,
+        message: pigeonVar_replyList[1] as String?,
+        details: pigeonVar_replyList[2],
+      );
+    } else if (pigeonVar_replyList[0] == null) {
+      throw PlatformException(
+        code: 'null-error',
+        message: 'Host platform returned null value for non-null return value.',
+      );
+    } else {
+      return (pigeonVar_replyList[0] as DSSCertificate?)!;
+    }
+  }
+
+  /// Создание ключа подписи на мобильном устройстве или внешнем носителе
+  /// и подписание запроса на сертификат.
+  ///
+  /// Android: создаёт ключ, подписывает запрос и отправляет на сервер → возвращает Certificate.
+  /// iOS: создаёт ключ и подписывает запрос БЕЗ отправки на сервер → возвращает signedRequest (Base64).
+  Future<SignRequestResult> signRequest(SignRequestRequest request) async {
+    final String pigeonVar_channelName = 'dev.flutter.pigeon.cpkey.CertHostApi.signRequest$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final List<Object?>? pigeonVar_replyList =
+        await pigeonVar_channel.send(<Object?>[request]) as List<Object?>?;
+    if (pigeonVar_replyList == null) {
+      throw _createConnectionError(pigeonVar_channelName);
+    } else if (pigeonVar_replyList.length > 1) {
+      throw PlatformException(
+        code: pigeonVar_replyList[0]! as String,
+        message: pigeonVar_replyList[1] as String?,
+        details: pigeonVar_replyList[2],
+      );
+    } else if (pigeonVar_replyList[0] == null) {
+      throw PlatformException(
+        code: 'null-error',
+        message: 'Host platform returned null value for non-null return value.',
+      );
+    } else {
+      return (pigeonVar_replyList[0] as SignRequestResult?)!;
+    }
+  }
+
+  /// Отправка подписанного запроса на сертификат на сервер для синхронизации.
+  /// Android: sendSignRequest(context, kid, certificate, signCertRequest, pin, providerInfo, callback)
+  /// iOS: sendClientSignedCertificate(kid, caId, rid, content, silent)
+  Future<DSSCertificate> sendSignRequest(SendSignRequestRequest request) async {
+    final String pigeonVar_channelName = 'dev.flutter.pigeon.cpkey.CertHostApi.sendSignRequest$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final List<Object?>? pigeonVar_replyList =
+        await pigeonVar_channel.send(<Object?>[request]) as List<Object?>?;
+    if (pigeonVar_replyList == null) {
+      throw _createConnectionError(pigeonVar_channelName);
+    } else if (pigeonVar_replyList.length > 1) {
+      throw PlatformException(
+        code: pigeonVar_replyList[0]! as String,
+        message: pigeonVar_replyList[1] as String?,
+        details: pigeonVar_replyList[2],
+      );
+    } else if (pigeonVar_replyList[0] == null) {
+      throw PlatformException(
+        code: 'null-error',
+        message: 'Host platform returned null value for non-null return value.',
+      );
+    } else {
+      return (pigeonVar_replyList[0] as DSSCertificate?)!;
+    }
+  }
+
+  /// Установка сертификата в ключевой контейнер на мобильном устройстве
+  /// или внешнем носителе.
+  /// Android: также отправляет сертификат на сервер для синхронизации.
+  /// iOS: только локальная установка без отправки.
+  ///
+  /// Android: installCertificate(context, certificate, crtBytes, pin, callback)
+  /// iOS: installCertificate(kid, cert, rid, cred)
+  Future<void> installCertificate(InstallCertificateRequest request) async {
+    final String pigeonVar_channelName = 'dev.flutter.pigeon.cpkey.CertHostApi.installCertificate$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final List<Object?>? pigeonVar_replyList =
+        await pigeonVar_channel.send(<Object?>[request]) as List<Object?>?;
+    if (pigeonVar_replyList == null) {
+      throw _createConnectionError(pigeonVar_channelName);
+    } else if (pigeonVar_replyList.length > 1) {
+      throw PlatformException(
+        code: pigeonVar_replyList[0]! as String,
+        message: pigeonVar_replyList[1] as String?,
+        details: pigeonVar_replyList[2],
+      );
+    } else {
+      return;
+    }
+  }
+}
+
+class SignHostApi {
+  /// Constructor for [SignHostApi].  The [binaryMessenger] named argument is
+  /// available for dependency injection.  If it is left null, the default
+  /// BinaryMessenger will be used which routes to the host platform.
+  SignHostApi({BinaryMessenger? binaryMessenger, String messageChannelSuffix = ''})
+      : pigeonVar_binaryMessenger = binaryMessenger,
+        pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
+  final BinaryMessenger? pigeonVar_binaryMessenger;
+
+  static const MessageCodec<Object?> pigeonChannelCodec = _PigeonCodec();
+
+  final String pigeonVar_messageChannelSuffix;
+
+  /// Подтверждение операции, созданной на сервере
+  ///
+  /// [kid] - Идентификатор набора ключей пользователя
+  /// [operation] - Сведения об операции
+  /// [enableMultiSelection] - Флаг, разрешено ли частичное подписание
+  /// [confirmationSendingMode] - Режим отправки подтверждения (online/offline)
+  /// [pinCode] - ПИН-код на ключевой контейнер (опционально)
+  /// [silent] - Флаг для скрытия/отображения диалоговых окон SDK
+  Future<DssSignMtResult> signMt(String kid, DssOperation? operation, bool enableMultiSelection, DssConfirmationSendingMode confirmationSendingMode, String? pinCode, bool silent) async {
+    final String pigeonVar_channelName = 'dev.flutter.pigeon.cpkey.SignHostApi.signMt$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final List<Object?>? pigeonVar_replyList =
+        await pigeonVar_channel.send(<Object?>[kid, operation, enableMultiSelection, confirmationSendingMode, pinCode, silent]) as List<Object?>?;
+    if (pigeonVar_replyList == null) {
+      throw _createConnectionError(pigeonVar_channelName);
+    } else if (pigeonVar_replyList.length > 1) {
+      throw PlatformException(
+        code: pigeonVar_replyList[0]! as String,
+        message: pigeonVar_replyList[1] as String?,
+        details: pigeonVar_replyList[2],
+      );
+    } else if (pigeonVar_replyList[0] == null) {
+      throw PlatformException(
+        code: 'null-error',
+        message: 'Host platform returned null value for non-null return value.',
+      );
+    } else {
+      return (pigeonVar_replyList[0] as DssSignMtResult?)!;
+    }
+  }
+}
+
+class SigningKeyHostApi {
+  /// Constructor for [SigningKeyHostApi].  The [binaryMessenger] named argument is
+  /// available for dependency injection.  If it is left null, the default
+  /// BinaryMessenger will be used which routes to the host platform.
+  SigningKeyHostApi({BinaryMessenger? binaryMessenger, String messageChannelSuffix = ''})
+      : pigeonVar_binaryMessenger = binaryMessenger,
+        pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
+  final BinaryMessenger? pigeonVar_binaryMessenger;
+
+  static const MessageCodec<Object?> pigeonChannelCodec = _PigeonCodec();
+
+  final String pigeonVar_messageChannelSuffix;
+
+  /// Получение списка ключей подписи.
+  /// [checkAllContainers] используется только на Android (на iOS параметр будет проигнорирован).
+  Future<List<DSSSigningKeyInfo>> listKeys(bool checkAllContainers) async {
+    final String pigeonVar_channelName = 'dev.flutter.pigeon.cpkey.SigningKeyHostApi.listKeys$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final List<Object?>? pigeonVar_replyList =
+        await pigeonVar_channel.send(<Object?>[checkAllContainers]) as List<Object?>?;
+    if (pigeonVar_replyList == null) {
+      throw _createConnectionError(pigeonVar_channelName);
+    } else if (pigeonVar_replyList.length > 1) {
+      throw PlatformException(
+        code: pigeonVar_replyList[0]! as String,
+        message: pigeonVar_replyList[1] as String?,
+        details: pigeonVar_replyList[2],
+      );
+    } else if (pigeonVar_replyList[0] == null) {
+      throw PlatformException(
+        code: 'null-error',
+        message: 'Host platform returned null value for non-null return value.',
+      );
+    } else {
+      return (pigeonVar_replyList[0] as List<Object?>?)!.cast<DSSSigningKeyInfo>();
     }
   }
 }

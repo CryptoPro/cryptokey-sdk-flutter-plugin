@@ -4,6 +4,8 @@ import AuthHostApi
 import DSSProtectionType
 import DSSRegisterInfo
 import DssUser
+import FlutterError
+import RemoveAuthRequest
 import ScanQrResult
 import android.content.Context
 import ru.cryptopro.cpkey.mappers.mapDssUser
@@ -63,7 +65,7 @@ class AuthHostApiImpl(
                     errorString: String?,
                     t: Throwable?
                 ) {
-                    callback.invoke(Result.failure(t ?: throw Exception("Scan Qr failure")))
+                    callback.invoke(Result.failure(t ?: throw FlutterError("Scan Qr failure")))
                 }
             })
     }
@@ -93,7 +95,7 @@ class AuthHostApiImpl(
                     errorString: String?,
                     t: Throwable?
                 ) {
-                    callback.invoke(Result.failure(t ?: Exception("kinit Error")))
+                    callback.invoke(Result.failure(t ?: FlutterError("kinit Error")))
                 }
 
             })
@@ -113,7 +115,7 @@ class AuthHostApiImpl(
                 errorString: String?,
                 t: Throwable?
             ) {
-                callback.invoke(Result.failure(t ?: Exception("confirm error")))
+                callback.invoke(Result.failure(t ?: FlutterError("confirm error")))
             }
 
         })
@@ -138,8 +140,33 @@ class AuthHostApiImpl(
                     errorString: String?,
                     t: Throwable?
                 ) {
-                    callback.invoke(Result.failure(t ?: Exception("verify error")))
+                    callback.invoke(Result.failure(t ?: FlutterError("verify error")))
                 }
+            })
+    }
+
+    override fun removeAuth(
+        request: RemoveAuthRequest,
+        callback: (Result<Unit>) -> Unit
+    ) {
+        auth.removeAuth(
+            context,
+            request.kid,
+            request.deletedKid,
+            true,
+            object : SdkResultCallback<Unit> {
+                override fun onOperationSuccessful(result: Unit) {
+                    callback.invoke(Result.success(result))
+                }
+
+                override fun onOperationFailed(
+                    errorCode: Int,
+                    errorString: String?,
+                    t: Throwable?
+                ) {
+                    callback.invoke(Result.failure(t ?: FlutterError("verify error")))
+                }
+
             })
     }
 }

@@ -101,13 +101,60 @@ enum class DSSDeviceType(val raw: Int) {
 
 enum class DSSCryptoKeyContainerType(val raw: Int) {
   UNKNOWN(0),
-  DEVICE(1),
-  RUTOKEN(2),
-  RUTOKEN_PKCS11(3),
-  DISTRIBUTED(4);
+  CLOUD(1),
+  DEVICE(2),
+  RUTOKEN(3),
+  RUTOKEN_PKCS11(4),
+  DISTRIBUTED(5);
 
   companion object {
     fun ofRaw(raw: Int): DSSCryptoKeyContainerType? {
+      return values().firstOrNull { it.raw == raw }
+    }
+  }
+}
+
+/** Режим отправки подтверждения операции */
+enum class DssConfirmationSendingMode(val raw: Int) {
+  /** Сформированный запрос с подтверждением SDK сразу отправляет на сервер */
+  ONLINE(0),
+  /** Приложение сохраняет запрос для возможности отправить его позднее */
+  OFFLINE(1);
+
+  companion object {
+    fun ofRaw(raw: Int): DssConfirmationSendingMode? {
+      return values().firstOrNull { it.raw == raw }
+    }
+  }
+}
+
+/** Результат подтверждения операции */
+enum class DssConfirmState(val raw: Int) {
+  /** Неизвестно */
+  UNKNOWN(0),
+  /** Подтверждено */
+  CONFIRMED(1),
+  /** Отклонено */
+  DECLINED(2);
+
+  companion object {
+    fun ofRaw(raw: Int): DssConfirmState? {
+      return values().firstOrNull { it.raw == raw }
+    }
+  }
+}
+
+/** Тип результата операции signMT */
+enum class DssSignMtResultType(val raw: Int) {
+  /** Полное подтверждение всех документов */
+  SUCCESS(0),
+  /** Частичное подтверждение (некоторые документы не подтверждены) */
+  PARTIAL_SUCCESS(1),
+  /** Отложенное подписание */
+  SUSPENDED_CONFIRM(2);
+
+  companion object {
+    fun ofRaw(raw: Int): DssSignMtResultType? {
       return values().firstOrNull { it.raw == raw }
     }
   }
@@ -354,6 +401,36 @@ data class ScanQrResult (
 }
 
 /** Generated class from Pigeon that represents data sent in messages. */
+data class RemoveAuthRequest (
+  val kid: String,
+  val deletedKid: String,
+  val forceDelete: Boolean,
+  val onlyLocal: Boolean? = null,
+  val silent: Boolean? = null
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): RemoveAuthRequest {
+      val kid = pigeonVar_list[0] as String
+      val deletedKid = pigeonVar_list[1] as String
+      val forceDelete = pigeonVar_list[2] as Boolean
+      val onlyLocal = pigeonVar_list[3] as Boolean?
+      val silent = pigeonVar_list[4] as Boolean?
+      return RemoveAuthRequest(kid, deletedKid, forceDelete, onlyLocal, silent)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      kid,
+      deletedKid,
+      forceDelete,
+      onlyLocal,
+      silent,
+    )
+  }
+}
+
+/** Generated class from Pigeon that represents data sent in messages. */
 data class DssKeyProtectionFlags (
   val fingerprintRequired: Boolean? = null,
   val collectEvents: Boolean? = null,
@@ -547,26 +624,68 @@ data class DssOperationDescription (
 }
 
 /**
- * Сведения о документе в операции
+ * Сведения о документе
  *
  * Generated class from Pigeon that represents data sent in messages.
  */
 data class DssDocument (
-  val id: String? = null,
-  val name: String? = null
+  /** Идентификатор документа в Сервисе Обработки Документов */
+  val id: String,
+  /** Имя документа */
+  val title: String,
+  /** Хэш-значение от документа */
+  val hash: String,
+  /** Краткая информация о документе (html) */
+  val snippet: String? = null,
+  /** Хэш-значение от краткой информации о документе */
+  val snippetHash: String? = null,
+  /** Размер документа в байтах */
+  val fileSize: Long,
+  /** Количество страниц в документе */
+  val pageCount: Long,
+  /** Флаг доступности печатной формы документа */
+  val isPrintableViewAvailable: Boolean,
+  /** Флаг доступности краткой информации о документе */
+  val isSnippetViewAvailable: Boolean,
+  /** Флаг доступности полной PDF-версии документа */
+  val isRawViewAvailable: Boolean,
+  /** Порядковый номер документа в списке (Только iOS) */
+  val order: Long? = null,
+  /** Содержимое файла в виде массива байт (используется для офлайн-подписи, только Android) */
+  val fileBytes: ByteArray? = null
 )
  {
   companion object {
     fun fromList(pigeonVar_list: List<Any?>): DssDocument {
-      val id = pigeonVar_list[0] as String?
-      val name = pigeonVar_list[1] as String?
-      return DssDocument(id, name)
+      val id = pigeonVar_list[0] as String
+      val title = pigeonVar_list[1] as String
+      val hash = pigeonVar_list[2] as String
+      val snippet = pigeonVar_list[3] as String?
+      val snippetHash = pigeonVar_list[4] as String?
+      val fileSize = pigeonVar_list[5] as Long
+      val pageCount = pigeonVar_list[6] as Long
+      val isPrintableViewAvailable = pigeonVar_list[7] as Boolean
+      val isSnippetViewAvailable = pigeonVar_list[8] as Boolean
+      val isRawViewAvailable = pigeonVar_list[9] as Boolean
+      val order = pigeonVar_list[10] as Long?
+      val fileBytes = pigeonVar_list[11] as ByteArray?
+      return DssDocument(id, title, hash, snippet, snippetHash, fileSize, pageCount, isPrintableViewAvailable, isSnippetViewAvailable, isRawViewAvailable, order, fileBytes)
     }
   }
   fun toList(): List<Any?> {
     return listOf(
       id,
-      name,
+      title,
+      hash,
+      snippet,
+      snippetHash,
+      fileSize,
+      pageCount,
+      isPrintableViewAvailable,
+      isSnippetViewAvailable,
+      isRawViewAvailable,
+      order,
+      fileBytes,
     )
   }
 }
@@ -716,6 +835,333 @@ data class DssOperationsInfo (
   }
 }
 
+/**
+ * Сведения о криптопровайдере
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class DssCryptoProviderInfo (
+  /** Тип криптопровайдера */
+  val provType: Long,
+  /** Имя криптопровайдера */
+  val provName: String,
+  /** Приоритет криптопровайдера (Android) */
+  val priority: Long? = null,
+  /** Имя ключевого контейнера (iOS) */
+  val containerName: String? = null
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): DssCryptoProviderInfo {
+      val provType = pigeonVar_list[0] as Long
+      val provName = pigeonVar_list[1] as String
+      val priority = pigeonVar_list[2] as Long?
+      val containerName = pigeonVar_list[3] as String?
+      return DssCryptoProviderInfo(provType, provName, priority, containerName)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      provType,
+      provName,
+      priority,
+      containerName,
+    )
+  }
+}
+
+/**
+ * Политика расширений
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class DssExtensionsPolicy (
+  /** Объектный идентификатор расширения */
+  val oid: String,
+  /** Значение расширения */
+  val value: String,
+  /** Флаг, указывающий, является ли данное расширение критичным */
+  val critical: Boolean
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): DssExtensionsPolicy {
+      val oid = pigeonVar_list[0] as String
+      val value = pigeonVar_list[1] as String
+      val critical = pigeonVar_list[2] as Boolean
+      return DssExtensionsPolicy(oid, value, critical)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      oid,
+      value,
+      critical,
+    )
+  }
+}
+
+/**
+ * Политика имени пользователя
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class DssNamePolicy (
+  /** Требуется ли обязательно заполнять данный компонент имени */
+  val isRequired: Boolean,
+  /** Порядковый номер в списке компонентов имени */
+  val order: Long,
+  /** Объектный идентификатор компонента имени */
+  val oid: String,
+  /** Отображаемое имя компонента имени */
+  val name: String,
+  /** Значение компонента имени */
+  val value: String? = null,
+  /** Строковый идентификатор компонента имени */
+  val stringIdentifier: String
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): DssNamePolicy {
+      val isRequired = pigeonVar_list[0] as Boolean
+      val order = pigeonVar_list[1] as Long
+      val oid = pigeonVar_list[2] as String
+      val name = pigeonVar_list[3] as String
+      val value = pigeonVar_list[4] as String?
+      val stringIdentifier = pigeonVar_list[5] as String
+      return DssNamePolicy(isRequired, order, oid, name, value, stringIdentifier)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      isRequired,
+      order,
+      oid,
+      name,
+      value,
+      stringIdentifier,
+    )
+  }
+}
+
+/**
+ * Сведения о шаблоне подписи
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class DssProcessingTemplate (
+  /** Идентификатор шаблона подписи */
+  val id: Long,
+  /** Описание шаблона подписи */
+  val description: String
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): DssProcessingTemplate {
+      val id = pigeonVar_list[0] as Long
+      val description = pigeonVar_list[1] as String
+      return DssProcessingTemplate(id, description)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      id,
+      description,
+    )
+  }
+}
+
+/**
+ * Политика обработки запросов на сертификат
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class DssCaPolicy (
+  /** Идентификатор обработчика запросов на сертификат */
+  val id: Long,
+  /** Отображаемое имя обработчика запросов на сертификат */
+  val name: String? = null,
+  /** Доступен ли УЦ для создания запросов */
+  val active: Boolean,
+  /** Разрешить подпись запросов на сертификат действующим ключом Пользователя */
+  val allowUserMode: Boolean,
+  /** Разрешить изменять имя субъекта в сертификате */
+  val snChangesEnable: Boolean,
+  /** Массив компонентов различительного имени пользователя */
+  val namePolicy: List<DssNamePolicy>,
+  /**
+   * Тип обработчика запросов на сертификат
+   * (CryptoProCA15Enroll, CryptoProCA20Enroll, DSSOutOfBandEnroll)
+   */
+  val caType: String? = null,
+  /**
+   * Режим получения статуса сертификата
+   * (CertificateAuthority, ChainOnline, ChainOffline, NoCheck, OCSP)
+   */
+  val validationMode: String? = null,
+  /** Отображается ли обработчик в веб-интерфейсе (Android) */
+  val showInUI: Boolean? = null,
+  /** Политики расширений */
+  val extensionsPolicy: List<DssExtensionsPolicy>? = null,
+  /** Массив шаблонов сертификатов (ключ — имя шаблона, значение — список OID) */
+  val ekuTemplates: Map<String, Any>? = null,
+  /** Массив сведений о криптопровайдерах (ключ — тип, значение — список провайдеров) */
+  val cryptoProviderInfos: Map<String, Any>? = null,
+  /** Список поддерживаемых сценариев (Goskey, Renew) (Android) */
+  val supportedFlows: List<String>? = null,
+  /** Адрес сервиса модуля дистанционной идентификации (Android) */
+  val mdipServiceAddress: String? = null,
+  /** Предпочтительный идентификатор обработчика (Android) */
+  val mdipPreferedEnrollId: String? = null
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): DssCaPolicy {
+      val id = pigeonVar_list[0] as Long
+      val name = pigeonVar_list[1] as String?
+      val active = pigeonVar_list[2] as Boolean
+      val allowUserMode = pigeonVar_list[3] as Boolean
+      val snChangesEnable = pigeonVar_list[4] as Boolean
+      val namePolicy = pigeonVar_list[5] as List<DssNamePolicy>
+      val caType = pigeonVar_list[6] as String?
+      val validationMode = pigeonVar_list[7] as String?
+      val showInUI = pigeonVar_list[8] as Boolean?
+      val extensionsPolicy = pigeonVar_list[9] as List<DssExtensionsPolicy>?
+      val ekuTemplates = pigeonVar_list[10] as Map<String, Any>?
+      val cryptoProviderInfos = pigeonVar_list[11] as Map<String, Any>?
+      val supportedFlows = pigeonVar_list[12] as List<String>?
+      val mdipServiceAddress = pigeonVar_list[13] as String?
+      val mdipPreferedEnrollId = pigeonVar_list[14] as String?
+      return DssCaPolicy(id, name, active, allowUserMode, snChangesEnable, namePolicy, caType, validationMode, showInUI, extensionsPolicy, ekuTemplates, cryptoProviderInfos, supportedFlows, mdipServiceAddress, mdipPreferedEnrollId)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      id,
+      name,
+      active,
+      allowUserMode,
+      snChangesEnable,
+      namePolicy,
+      caType,
+      validationMode,
+      showInUI,
+      extensionsPolicy,
+      ekuTemplates,
+      cryptoProviderInfos,
+      supportedFlows,
+      mdipServiceAddress,
+      mdipPreferedEnrollId,
+    )
+  }
+}
+
+/**
+ * Параметры подписи (политика взаимодействия с Сервисом Подписи)
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class DssCaParams (
+  /** Массив политик обработки запросов на сертификат */
+  val caPolicies: List<DssCaPolicy>,
+  /** Массив шаблонов подписи */
+  val processingTemplates: List<DssProcessingTemplate>,
+  /** Разрешено ли создание ключей на мобильном устройстве */
+  val isMobileKeysSupported: Boolean? = null,
+  /** Разрешено ли создание распределённых ключей */
+  val isDskKeysSupported: Boolean? = null,
+  /** Разрешено ли создание распределённых ключей */
+  val isServerKeysSupported: Boolean? = null
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): DssCaParams {
+      val caPolicies = pigeonVar_list[0] as List<DssCaPolicy>
+      val processingTemplates = pigeonVar_list[1] as List<DssProcessingTemplate>
+      val isMobileKeysSupported = pigeonVar_list[2] as Boolean?
+      val isDskKeysSupported = pigeonVar_list[3] as Boolean?
+      val isServerKeysSupported = pigeonVar_list[4] as Boolean?
+      return DssCaParams(caPolicies, processingTemplates, isMobileKeysSupported, isDskKeysSupported, isServerKeysSupported)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      caPolicies,
+      processingTemplates,
+      isMobileKeysSupported,
+      isDskKeysSupported,
+      isServerKeysSupported,
+    )
+  }
+}
+
+/**
+ * Сведения о криптопровайдере
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class CryptoProviderInfo (
+  /** Имя ключевого контейнера */
+  val containerName: String,
+  /** Полное имя ключевого контейнера (только Android) */
+  val fullContainerName: String? = null,
+  /** Тип криптопровайдера (по умолчанию 80) */
+  val provType: Long,
+  /** Имя криптопровайдера */
+  val provName: String? = null,
+  /** Тип ключевого контейнера */
+  val keyContainerType: DSSCryptoKeyContainerType,
+  /**
+   * Флаг экспортируемости ключа. По умолчанию 0 (неэкспортируемый).
+   * Только Android.
+   */
+  val isExportable: Long,
+  /**
+   * PUK-код внешнего носителя (если ключ будет сохранен на нем).
+   * Только Android.
+   */
+  val puk: String? = null,
+  /**
+   * PIN-код внешнего носителя (если ключ будет сохранен на нем).
+   * Только Android.
+   */
+  val pin: String? = null,
+  /**
+   * Сохранять PIN-код внешнего носителя на время действия сессии.
+   * По умолчанию false. Только Android.
+   */
+  val savePin: Boolean
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): CryptoProviderInfo {
+      val containerName = pigeonVar_list[0] as String
+      val fullContainerName = pigeonVar_list[1] as String?
+      val provType = pigeonVar_list[2] as Long
+      val provName = pigeonVar_list[3] as String?
+      val keyContainerType = pigeonVar_list[4] as DSSCryptoKeyContainerType
+      val isExportable = pigeonVar_list[5] as Long
+      val puk = pigeonVar_list[6] as String?
+      val pin = pigeonVar_list[7] as String?
+      val savePin = pigeonVar_list[8] as Boolean
+      return CryptoProviderInfo(containerName, fullContainerName, provType, provName, keyContainerType, isExportable, puk, pin, savePin)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      containerName,
+      fullContainerName,
+      provType,
+      provName,
+      keyContainerType,
+      isExportable,
+      puk,
+      pin,
+      savePin,
+    )
+  }
+}
+
 /** Generated class from Pigeon that represents data sent in messages. */
 data class DSSCertificate (
   /** Тип объекта: 'crt' - сертификат, 'req' - запрос на сертификат */
@@ -845,6 +1291,497 @@ data class DeleteCertRequest (
     )
   }
 }
+
+/**
+ * Параметры для создания запроса на сертификат (серверный ключ / распределённый)
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class GetCertRequest (
+  /** Идентификатор набора ключей пользователя */
+  val kid: String,
+  /** Идентификатор обработчика УЦ */
+  val caId: Long,
+  /** Идентификатор шаблона сертификата */
+  val tId: String,
+  /** Различительное имя субъекта: {"OID компонента имени": "Значение компонента имени"} */
+  val dn: Map<String, String>,
+  /** Дополнительные параметры запроса на сертификат (iOS: reqParams) */
+  val reqParams: Map<String, String>? = null,
+  /** Флаг для скрытия/отображения диалоговых окон SDK (iOS only, silent mode) */
+  val silent: Boolean? = null
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): GetCertRequest {
+      val kid = pigeonVar_list[0] as String
+      val caId = pigeonVar_list[1] as Long
+      val tId = pigeonVar_list[2] as String
+      val dn = pigeonVar_list[3] as Map<String, String>
+      val reqParams = pigeonVar_list[4] as Map<String, String>?
+      val silent = pigeonVar_list[5] as Boolean?
+      return GetCertRequest(kid, caId, tId, dn, reqParams, silent)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      kid,
+      caId,
+      tId,
+      dn,
+      reqParams,
+      silent,
+    )
+  }
+}
+
+/**
+ * Учётные данные для криптопровайдера (внешний носитель)
+ * iOS: DSSCryptoProviderInfoCreds
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class CryptoProviderCreds (
+  /** ПИН-код внешнего носителя / ПИН-код на контейнер сертификата */
+  val pin: String? = null,
+  /** Код инициализации внешнего носителя */
+  val puk: String? = null,
+  /** Доступность ввода учетных данных в silent-режиме (True — только для УНЭП) */
+  val isSilent: Boolean? = null
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): CryptoProviderCreds {
+      val pin = pigeonVar_list[0] as String?
+      val puk = pigeonVar_list[1] as String?
+      val isSilent = pigeonVar_list[2] as Boolean?
+      return CryptoProviderCreds(pin, puk, isSilent)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      pin,
+      puk,
+      isSilent,
+    )
+  }
+}
+
+/**
+ * Параметры для подписания запроса на сертификат
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class SignRequestRequest (
+  /** Идентификатор набора ключей пользователя */
+  val kid: String,
+  /** Сведения о созданном неподписанном запросе на сертификат */
+  val certificate: DSSCertificate,
+  /** Сведения о криптопровайдере */
+  val providerInfo: CryptoProviderInfo? = null,
+  /**
+   * Учётные данные для криптопровайдера (pin, puk, isSilent)
+   * Android: pin передаётся отдельно; iOS: DSSCryptoProviderInfoCreds
+   */
+  val creds: CryptoProviderCreds? = null,
+  /**
+   * Флаг для скрытия/отображения диалоговых окон SDK (silent mode).
+   * Используется только для создания УНЭП. Не используется по умолчанию.
+   */
+  val silent: Boolean? = null
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): SignRequestRequest {
+      val kid = pigeonVar_list[0] as String
+      val certificate = pigeonVar_list[1] as DSSCertificate
+      val providerInfo = pigeonVar_list[2] as CryptoProviderInfo?
+      val creds = pigeonVar_list[3] as CryptoProviderCreds?
+      val silent = pigeonVar_list[4] as Boolean?
+      return SignRequestRequest(kid, certificate, providerInfo, creds, silent)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      kid,
+      certificate,
+      providerInfo,
+      creds,
+      silent,
+    )
+  }
+}
+
+/**
+ * Результат подписания запроса на сертификат
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class SignRequestResult (
+  /**
+   * Сведения о созданном запросе на сертификат или сертификате.
+   * Заполняется на Android (signRequest отправляет подписанный запрос на сервер).
+   */
+  val certificate: DSSCertificate? = null,
+  /**
+   * Подписанный запрос на сертификат, закодированный в Base64.
+   * Заполняется на iOS (signRequest НЕ отправляет на сервер).
+   */
+  val signedRequest: String? = null
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): SignRequestResult {
+      val certificate = pigeonVar_list[0] as DSSCertificate?
+      val signedRequest = pigeonVar_list[1] as String?
+      return SignRequestResult(certificate, signedRequest)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      certificate,
+      signedRequest,
+    )
+  }
+}
+
+/**
+ * Параметры для отправки подписанного запроса на сертификат на сервер
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class SendSignRequestRequest (
+  /** Идентификатор набора ключей пользователя */
+  val kid: String,
+  /** Сведения о запросе на сертификат (Android) */
+  val certificate: DSSCertificate? = null,
+  /**
+   * Подписанный запрос на сертификат, закодированный в Base64
+   * Android: signCertRequest (ByteArray?)
+   * iOS: content (Data)
+   */
+  val signCertRequest: String? = null,
+  /** Учётные данные (pin на ключевой контейнер) (Android) */
+  val creds: CryptoProviderCreds? = null,
+  /** Сведения о криптопровайдере (Android) */
+  val providerInfo: CryptoProviderInfo? = null,
+  /** Идентификатор обработчика УЦ (iOS) */
+  val caId: Long? = null,
+  /** Идентификатор запроса на сертификат (iOS) */
+  val rid: String? = null,
+  /**
+   * Флаг для скрытия/отображения диалоговых окон SDK (iOS: silent mode).
+   * Не используется по умолчанию.
+   */
+  val silent: Boolean? = null
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): SendSignRequestRequest {
+      val kid = pigeonVar_list[0] as String
+      val certificate = pigeonVar_list[1] as DSSCertificate?
+      val signCertRequest = pigeonVar_list[2] as String?
+      val creds = pigeonVar_list[3] as CryptoProviderCreds?
+      val providerInfo = pigeonVar_list[4] as CryptoProviderInfo?
+      val caId = pigeonVar_list[5] as Long?
+      val rid = pigeonVar_list[6] as String?
+      val silent = pigeonVar_list[7] as Boolean?
+      return SendSignRequestRequest(kid, certificate, signCertRequest, creds, providerInfo, caId, rid, silent)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      kid,
+      certificate,
+      signCertRequest,
+      creds,
+      providerInfo,
+      caId,
+      rid,
+      silent,
+    )
+  }
+}
+
+/**
+ * Параметры для установки сертификата в ключевой контейнер
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class InstallCertificateRequest (
+  /**
+   * Сведения о сертификате / запросе на сертификат, который требуется установить
+   * Android: certificate (Certificate) — сведения о запросе
+   * iOS: cert (DSSCertificate) — сведения и содержимое сертификата
+   */
+  val certificate: DSSCertificate,
+  /** Идентификатор набора ключей пользователя (iOS) */
+  val kid: String? = null,
+  /** Идентификатор запроса на сертификат (iOS) */
+  val rid: String? = null,
+  /** Сертификат, который требуется установить, закодированный в Base64 (Android: crtBytes) */
+  val crtBytes: String? = null,
+  /**
+   * Учётные данные (pin на контейнер закрытого ключа)
+   * Android: pin; iOS: DSSCryptoProviderInfoCreds (pin, puk, isSilent)
+   */
+  val creds: CryptoProviderCreds? = null
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): InstallCertificateRequest {
+      val certificate = pigeonVar_list[0] as DSSCertificate
+      val kid = pigeonVar_list[1] as String?
+      val rid = pigeonVar_list[2] as String?
+      val crtBytes = pigeonVar_list[3] as String?
+      val creds = pigeonVar_list[4] as CryptoProviderCreds?
+      return InstallCertificateRequest(certificate, kid, rid, crtBytes, creds)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      certificate,
+      kid,
+      rid,
+      crtBytes,
+      creds,
+    )
+  }
+}
+
+/**
+ * Сведения о подтверждённом документе
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class DssConfirmedDocument (
+  /** Идентификатор документа */
+  val id: String,
+  /** Хэш-значение от документа */
+  val hash: String
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): DssConfirmedDocument {
+      val id = pigeonVar_list[0] as String
+      val hash = pigeonVar_list[1] as String
+      return DssConfirmedDocument(id, hash)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      id,
+      hash,
+    )
+  }
+}
+
+/**
+ * Сведения об отклонённом документе
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class DssDeclinedDocument (
+  /** Идентификатор документа */
+  val id: String,
+  /** Хэш-значение от документа */
+  val hash: String
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): DssDeclinedDocument {
+      val id = pigeonVar_list[0] as String
+      val hash = pigeonVar_list[1] as String
+      return DssDeclinedDocument(id, hash)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      id,
+      hash,
+    )
+  }
+}
+
+/**
+ * Сведения о подтверждаемой операции
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class DssApprovedOperation (
+  /** Идентификатор операции на Сервисе Операций */
+  val id: String,
+  /** Тип операции */
+  val type: String,
+  /** Описание операции */
+  val caption: String,
+  /** Дополнительные параметры операции */
+  val parameters: Map<String?, String?>? = null,
+  /** Массив сведений о подтвержденных документах */
+  val confirmedDocuments: List<DssConfirmedDocument?>? = null,
+  /** Массив сведений об отклоненных документах */
+  val declinedDocuments: List<DssDeclinedDocument?>? = null,
+  /** Штамп времени */
+  val timeStamp: Long
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): DssApprovedOperation {
+      val id = pigeonVar_list[0] as String
+      val type = pigeonVar_list[1] as String
+      val caption = pigeonVar_list[2] as String
+      val parameters = pigeonVar_list[3] as Map<String?, String?>?
+      val confirmedDocuments = pigeonVar_list[4] as List<DssConfirmedDocument?>?
+      val declinedDocuments = pigeonVar_list[5] as List<DssDeclinedDocument?>?
+      val timeStamp = pigeonVar_list[6] as Long
+      return DssApprovedOperation(id, type, caption, parameters, confirmedDocuments, declinedDocuments, timeStamp)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      id,
+      type,
+      caption,
+      parameters,
+      confirmedDocuments,
+      declinedDocuments,
+      timeStamp,
+    )
+  }
+}
+
+/**
+ * Запрос на подтверждение/отклонение операции, созданной на сервере
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class DssApproveRequestMt (
+  /** Сведения о подтверждаемой операции */
+  val approvedOperation: DssApprovedOperation,
+  /** Код аутентификации операции (HMAC) */
+  val hmac: String
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): DssApproveRequestMt {
+      val approvedOperation = pigeonVar_list[0] as DssApprovedOperation
+      val hmac = pigeonVar_list[1] as String
+      return DssApproveRequestMt(approvedOperation, hmac)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      approvedOperation,
+      hmac,
+    )
+  }
+}
+
+/**
+ * Результат выполнения операции signMT
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class DssSignMtResult (
+  /** Тип результата */
+  val resultType: DssSignMtResultType,
+  /** Результат подтверждения операции (для success и partialSuccess) */
+  val confirmState: DssConfirmState? = null,
+  /** Запрос на подтверждение/отклонение (для отложенного подписания - suspendedConfirm) */
+  val approveRequest: DssApproveRequestMt? = null,
+  /** Список документов с ошибками (для partialSuccess) */
+  val documentsWithErrors: List<DssDocument?>? = null,
+  /** Сведения об ошибках: ключ - id документа, значение - описание ошибки (Только iOS) */
+  val documentErrors: Map<String?, String?>? = null
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): DssSignMtResult {
+      val resultType = pigeonVar_list[0] as DssSignMtResultType
+      val confirmState = pigeonVar_list[1] as DssConfirmState?
+      val approveRequest = pigeonVar_list[2] as DssApproveRequestMt?
+      val documentsWithErrors = pigeonVar_list[3] as List<DssDocument?>?
+      val documentErrors = pigeonVar_list[4] as Map<String?, String?>?
+      return DssSignMtResult(resultType, confirmState, approveRequest, documentsWithErrors, documentErrors)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      resultType,
+      confirmState,
+      approveRequest,
+      documentsWithErrors,
+      documentErrors,
+    )
+  }
+}
+
+/**
+ * Универсальная модель сведений о ключевом контейнере для обеих платформ
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class DSSSigningKeyInfo (
+  val uid: String? = null,
+  val containerName: String? = null,
+  val containerFullName: String? = null,
+  val cid: String? = null,
+  val rid: String? = null,
+  val isInstalled: Boolean,
+  val certBase64: String? = null,
+  val keyContainerType: DSSCryptoKeyContainerType? = null,
+  val pin: String? = null,
+  val providerInfo: CryptoProviderInfo? = null,
+  val kid: String? = null,
+  val providerName: String? = null,
+  val providerType: Long? = null,
+  val isExportable: Boolean? = null,
+  val createdAtMs: Long? = null,
+  val installedAtMs: Long? = null
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): DSSSigningKeyInfo {
+      val uid = pigeonVar_list[0] as String?
+      val containerName = pigeonVar_list[1] as String?
+      val containerFullName = pigeonVar_list[2] as String?
+      val cid = pigeonVar_list[3] as String?
+      val rid = pigeonVar_list[4] as String?
+      val isInstalled = pigeonVar_list[5] as Boolean
+      val certBase64 = pigeonVar_list[6] as String?
+      val keyContainerType = pigeonVar_list[7] as DSSCryptoKeyContainerType?
+      val pin = pigeonVar_list[8] as String?
+      val providerInfo = pigeonVar_list[9] as CryptoProviderInfo?
+      val kid = pigeonVar_list[10] as String?
+      val providerName = pigeonVar_list[11] as String?
+      val providerType = pigeonVar_list[12] as Long?
+      val isExportable = pigeonVar_list[13] as Boolean?
+      val createdAtMs = pigeonVar_list[14] as Long?
+      val installedAtMs = pigeonVar_list[15] as Long?
+      return DSSSigningKeyInfo(uid, containerName, containerFullName, cid, rid, isInstalled, certBase64, keyContainerType, pin, providerInfo, kid, providerName, providerType, isExportable, createdAtMs, installedAtMs)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      uid,
+      containerName,
+      containerFullName,
+      cid,
+      rid,
+      isInstalled,
+      certBase64,
+      keyContainerType,
+      pin,
+      providerInfo,
+      kid,
+      providerName,
+      providerType,
+      isExportable,
+      createdAtMs,
+      installedAtMs,
+    )
+  }
+}
 private open class CryptoProDssApiPigeonCodec : StandardMessageCodec() {
   override fun readValueOfType(type: Byte, buffer: ByteBuffer): Any? {
     return when (type) {
@@ -874,93 +1811,208 @@ private open class CryptoProDssApiPigeonCodec : StandardMessageCodec() {
         }
       }
       134.toByte() -> {
-        return (readValue(buffer) as? List<Any?>)?.let {
-          SdkInitRequest.fromList(it)
+        return (readValue(buffer) as Long?)?.let {
+          DssConfirmationSendingMode.ofRaw(it.toInt())
         }
       }
       135.toByte() -> {
-        return (readValue(buffer) as? List<Any?>)?.let {
-          SdkInitResult.fromList(it)
+        return (readValue(buffer) as Long?)?.let {
+          DssConfirmState.ofRaw(it.toInt())
         }
       }
       136.toByte() -> {
-        return (readValue(buffer) as? List<Any?>)?.let {
-          DssUser.fromList(it)
+        return (readValue(buffer) as Long?)?.let {
+          DssSignMtResultType.ofRaw(it.toInt())
         }
       }
       137.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          DSSRegisterInfo.fromList(it)
+          SdkInitRequest.fromList(it)
         }
       }
       138.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          QrData.fromList(it)
+          SdkInitResult.fromList(it)
         }
       }
       139.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          RawQr.fromList(it)
+          DssUser.fromList(it)
         }
       }
       140.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          ScanQrResult.fromList(it)
+          DSSRegisterInfo.fromList(it)
         }
       }
       141.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          DssKeyProtectionFlags.fromList(it)
+          QrData.fromList(it)
         }
       }
       142.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          DssPolicyPayload.fromList(it)
+          RawQr.fromList(it)
         }
       }
       143.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          GetOperationsRequest.fromList(it)
+          ScanQrResult.fromList(it)
         }
       }
       144.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          DssAppSystemDescription.fromList(it)
+          RemoveAuthRequest.fromList(it)
         }
       }
       145.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          DssOperationDescription.fromList(it)
+          DssKeyProtectionFlags.fromList(it)
         }
       }
       146.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          DssDocument.fromList(it)
+          DssPolicyPayload.fromList(it)
         }
       }
       147.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          DssOperationParameters.fromList(it)
+          GetOperationsRequest.fromList(it)
         }
       }
       148.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          DssOperation.fromList(it)
+          DssAppSystemDescription.fromList(it)
         }
       }
       149.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          DssOperationsInfo.fromList(it)
+          DssOperationDescription.fromList(it)
         }
       }
       150.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          DSSCertificate.fromList(it)
+          DssDocument.fromList(it)
         }
       }
       151.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
+          DssOperationParameters.fromList(it)
+        }
+      }
+      152.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          DssOperation.fromList(it)
+        }
+      }
+      153.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          DssOperationsInfo.fromList(it)
+        }
+      }
+      154.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          DssCryptoProviderInfo.fromList(it)
+        }
+      }
+      155.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          DssExtensionsPolicy.fromList(it)
+        }
+      }
+      156.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          DssNamePolicy.fromList(it)
+        }
+      }
+      157.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          DssProcessingTemplate.fromList(it)
+        }
+      }
+      158.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          DssCaPolicy.fromList(it)
+        }
+      }
+      159.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          DssCaParams.fromList(it)
+        }
+      }
+      160.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          CryptoProviderInfo.fromList(it)
+        }
+      }
+      161.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          DSSCertificate.fromList(it)
+        }
+      }
+      162.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
           DeleteCertRequest.fromList(it)
+        }
+      }
+      163.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          GetCertRequest.fromList(it)
+        }
+      }
+      164.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          CryptoProviderCreds.fromList(it)
+        }
+      }
+      165.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          SignRequestRequest.fromList(it)
+        }
+      }
+      166.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          SignRequestResult.fromList(it)
+        }
+      }
+      167.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          SendSignRequestRequest.fromList(it)
+        }
+      }
+      168.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          InstallCertificateRequest.fromList(it)
+        }
+      }
+      169.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          DssConfirmedDocument.fromList(it)
+        }
+      }
+      170.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          DssDeclinedDocument.fromList(it)
+        }
+      }
+      171.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          DssApprovedOperation.fromList(it)
+        }
+      }
+      172.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          DssApproveRequestMt.fromList(it)
+        }
+      }
+      173.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          DssSignMtResult.fromList(it)
+        }
+      }
+      174.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          DSSSigningKeyInfo.fromList(it)
         }
       }
       else -> super.readValueOfType(type, buffer)
@@ -988,76 +2040,168 @@ private open class CryptoProDssApiPigeonCodec : StandardMessageCodec() {
         stream.write(133)
         writeValue(stream, value.raw)
       }
-      is SdkInitRequest -> {
+      is DssConfirmationSendingMode -> {
         stream.write(134)
-        writeValue(stream, value.toList())
+        writeValue(stream, value.raw)
       }
-      is SdkInitResult -> {
+      is DssConfirmState -> {
         stream.write(135)
-        writeValue(stream, value.toList())
+        writeValue(stream, value.raw)
       }
-      is DssUser -> {
+      is DssSignMtResultType -> {
         stream.write(136)
-        writeValue(stream, value.toList())
+        writeValue(stream, value.raw)
       }
-      is DSSRegisterInfo -> {
+      is SdkInitRequest -> {
         stream.write(137)
         writeValue(stream, value.toList())
       }
-      is QrData -> {
+      is SdkInitResult -> {
         stream.write(138)
         writeValue(stream, value.toList())
       }
-      is RawQr -> {
+      is DssUser -> {
         stream.write(139)
         writeValue(stream, value.toList())
       }
-      is ScanQrResult -> {
+      is DSSRegisterInfo -> {
         stream.write(140)
         writeValue(stream, value.toList())
       }
-      is DssKeyProtectionFlags -> {
+      is QrData -> {
         stream.write(141)
         writeValue(stream, value.toList())
       }
-      is DssPolicyPayload -> {
+      is RawQr -> {
         stream.write(142)
         writeValue(stream, value.toList())
       }
-      is GetOperationsRequest -> {
+      is ScanQrResult -> {
         stream.write(143)
         writeValue(stream, value.toList())
       }
-      is DssAppSystemDescription -> {
+      is RemoveAuthRequest -> {
         stream.write(144)
         writeValue(stream, value.toList())
       }
-      is DssOperationDescription -> {
+      is DssKeyProtectionFlags -> {
         stream.write(145)
         writeValue(stream, value.toList())
       }
-      is DssDocument -> {
+      is DssPolicyPayload -> {
         stream.write(146)
         writeValue(stream, value.toList())
       }
-      is DssOperationParameters -> {
+      is GetOperationsRequest -> {
         stream.write(147)
         writeValue(stream, value.toList())
       }
-      is DssOperation -> {
+      is DssAppSystemDescription -> {
         stream.write(148)
         writeValue(stream, value.toList())
       }
-      is DssOperationsInfo -> {
+      is DssOperationDescription -> {
         stream.write(149)
         writeValue(stream, value.toList())
       }
-      is DSSCertificate -> {
+      is DssDocument -> {
         stream.write(150)
         writeValue(stream, value.toList())
       }
-      is DeleteCertRequest -> {
+      is DssOperationParameters -> {
         stream.write(151)
+        writeValue(stream, value.toList())
+      }
+      is DssOperation -> {
+        stream.write(152)
+        writeValue(stream, value.toList())
+      }
+      is DssOperationsInfo -> {
+        stream.write(153)
+        writeValue(stream, value.toList())
+      }
+      is DssCryptoProviderInfo -> {
+        stream.write(154)
+        writeValue(stream, value.toList())
+      }
+      is DssExtensionsPolicy -> {
+        stream.write(155)
+        writeValue(stream, value.toList())
+      }
+      is DssNamePolicy -> {
+        stream.write(156)
+        writeValue(stream, value.toList())
+      }
+      is DssProcessingTemplate -> {
+        stream.write(157)
+        writeValue(stream, value.toList())
+      }
+      is DssCaPolicy -> {
+        stream.write(158)
+        writeValue(stream, value.toList())
+      }
+      is DssCaParams -> {
+        stream.write(159)
+        writeValue(stream, value.toList())
+      }
+      is CryptoProviderInfo -> {
+        stream.write(160)
+        writeValue(stream, value.toList())
+      }
+      is DSSCertificate -> {
+        stream.write(161)
+        writeValue(stream, value.toList())
+      }
+      is DeleteCertRequest -> {
+        stream.write(162)
+        writeValue(stream, value.toList())
+      }
+      is GetCertRequest -> {
+        stream.write(163)
+        writeValue(stream, value.toList())
+      }
+      is CryptoProviderCreds -> {
+        stream.write(164)
+        writeValue(stream, value.toList())
+      }
+      is SignRequestRequest -> {
+        stream.write(165)
+        writeValue(stream, value.toList())
+      }
+      is SignRequestResult -> {
+        stream.write(166)
+        writeValue(stream, value.toList())
+      }
+      is SendSignRequestRequest -> {
+        stream.write(167)
+        writeValue(stream, value.toList())
+      }
+      is InstallCertificateRequest -> {
+        stream.write(168)
+        writeValue(stream, value.toList())
+      }
+      is DssConfirmedDocument -> {
+        stream.write(169)
+        writeValue(stream, value.toList())
+      }
+      is DssDeclinedDocument -> {
+        stream.write(170)
+        writeValue(stream, value.toList())
+      }
+      is DssApprovedOperation -> {
+        stream.write(171)
+        writeValue(stream, value.toList())
+      }
+      is DssApproveRequestMt -> {
+        stream.write(172)
+        writeValue(stream, value.toList())
+      }
+      is DssSignMtResult -> {
+        stream.write(173)
+        writeValue(stream, value.toList())
+      }
+      is DSSSigningKeyInfo -> {
+        stream.write(174)
         writeValue(stream, value.toList())
       }
       else -> super.writeValue(stream, value)
@@ -1154,6 +2298,8 @@ interface AuthHostApi {
    * находящихся в состоянии NotVerified.
    */
   fun verifyDevice(kid: String, silent: Boolean, callback: (Result<Unit>) -> Unit)
+  /** Удаление устройства пользователя и его вектора аутентификации. */
+  fun removeAuth(request: RemoveAuthRequest, callback: (Result<Unit>) -> Unit)
 
   companion object {
     /** The codec used by AuthHostApi. */
@@ -1265,6 +2411,25 @@ interface AuthHostApi {
           channel.setMessageHandler(null)
         }
       }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.cpkey.AuthHostApi.removeAuth$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val requestArg = args[0] as RemoveAuthRequest
+            api.removeAuth(requestArg) { result: Result<Unit> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(wrapError(error))
+              } else {
+                reply.reply(wrapResult(null))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
     }
   }
 }
@@ -1274,6 +2439,8 @@ interface PolicyHostApi {
   fun getParamsDss(serviceUrl: String, callback: (Result<DssPolicyPayload>) -> Unit)
   /** Метод получения списка операций, требующих подтверждения. */
   fun getOperations(request: GetOperationsRequest, callback: (Result<DssOperationsInfo>) -> Unit)
+  /** Запрос с сервера параметров подписи */
+  fun getCaParams(kid: String, callback: (Result<DssCaParams>) -> Unit)
 
   companion object {
     /** The codec used by PolicyHostApi. */
@@ -1324,6 +2491,26 @@ interface PolicyHostApi {
           channel.setMessageHandler(null)
         }
       }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.cpkey.PolicyHostApi.getCaParams$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val kidArg = args[0] as String
+            api.getCaParams(kidArg) { result: Result<DssCaParams> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
     }
   }
 }
@@ -1333,6 +2520,42 @@ interface CertHostApi {
   fun getCertList(kid: String, callback: (Result<List<DSSCertificate>>) -> Unit)
   /** Метод удаления сертификата. */
   fun deleteCert(request: DeleteCertRequest, callback: (Result<Unit>) -> Unit)
+  /**
+   * Создание запроса на сертификат с ключом на сервере (cloud / distributed)
+   * Android: Cert.getCert(...)
+   * iOS: createUnsignedCert(...)
+   */
+  fun getCert(request: GetCertRequest, callback: (Result<DSSCertificate>) -> Unit)
+  /**
+   * Создание неподписанного запроса на сертификат и отправка его на сервер для синхронизации.
+   * Android: getClientCert(context, kid, caId, tId, dn, callback)
+   * iOS: createUnsignedCert(kid, caId, tId, dn, reqParams, silent)
+   */
+  fun getClientCert(request: GetCertRequest, callback: (Result<DSSCertificate>) -> Unit)
+  /**
+   * Создание ключа подписи на мобильном устройстве или внешнем носителе
+   * и подписание запроса на сертификат.
+   *
+   * Android: создаёт ключ, подписывает запрос и отправляет на сервер → возвращает Certificate.
+   * iOS: создаёт ключ и подписывает запрос БЕЗ отправки на сервер → возвращает signedRequest (Base64).
+   */
+  fun signRequest(request: SignRequestRequest, callback: (Result<SignRequestResult>) -> Unit)
+  /**
+   * Отправка подписанного запроса на сертификат на сервер для синхронизации.
+   * Android: sendSignRequest(context, kid, certificate, signCertRequest, pin, providerInfo, callback)
+   * iOS: sendClientSignedCertificate(kid, caId, rid, content, silent)
+   */
+  fun sendSignRequest(request: SendSignRequestRequest, callback: (Result<DSSCertificate>) -> Unit)
+  /**
+   * Установка сертификата в ключевой контейнер на мобильном устройстве
+   * или внешнем носителе.
+   * Android: также отправляет сертификат на сервер для синхронизации.
+   * iOS: только локальная установка без отправки.
+   *
+   * Android: installCertificate(context, certificate, crtBytes, pin, callback)
+   * iOS: installCertificate(kid, cert, rid, cred)
+   */
+  fun installCertificate(request: InstallCertificateRequest, callback: (Result<Unit>) -> Unit)
 
   companion object {
     /** The codec used by CertHostApi. */
@@ -1375,6 +2598,196 @@ interface CertHostApi {
                 reply.reply(wrapError(error))
               } else {
                 reply.reply(wrapResult(null))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.cpkey.CertHostApi.getCert$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val requestArg = args[0] as GetCertRequest
+            api.getCert(requestArg) { result: Result<DSSCertificate> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.cpkey.CertHostApi.getClientCert$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val requestArg = args[0] as GetCertRequest
+            api.getClientCert(requestArg) { result: Result<DSSCertificate> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.cpkey.CertHostApi.signRequest$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val requestArg = args[0] as SignRequestRequest
+            api.signRequest(requestArg) { result: Result<SignRequestResult> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.cpkey.CertHostApi.sendSignRequest$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val requestArg = args[0] as SendSignRequestRequest
+            api.sendSignRequest(requestArg) { result: Result<DSSCertificate> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.cpkey.CertHostApi.installCertificate$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val requestArg = args[0] as InstallCertificateRequest
+            api.installCertificate(requestArg) { result: Result<Unit> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(wrapError(error))
+              } else {
+                reply.reply(wrapResult(null))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+    }
+  }
+}
+/** Generated interface from Pigeon that represents a handler of messages from Flutter. */
+interface SignHostApi {
+  /**
+   * Подтверждение операции, созданной на сервере
+   *
+   * [kid] - Идентификатор набора ключей пользователя
+   * [operation] - Сведения об операции
+   * [enableMultiSelection] - Флаг, разрешено ли частичное подписание
+   * [confirmationSendingMode] - Режим отправки подтверждения (online/offline)
+   * [pinCode] - ПИН-код на ключевой контейнер (опционально)
+   * [silent] - Флаг для скрытия/отображения диалоговых окон SDK
+   */
+  fun signMt(kid: String, operation: DssOperation?, enableMultiSelection: Boolean, confirmationSendingMode: DssConfirmationSendingMode, pinCode: String?, silent: Boolean, callback: (Result<DssSignMtResult>) -> Unit)
+
+  companion object {
+    /** The codec used by SignHostApi. */
+    val codec: MessageCodec<Any?> by lazy {
+      CryptoProDssApiPigeonCodec()
+    }
+    /** Sets up an instance of `SignHostApi` to handle messages through the `binaryMessenger`. */
+    @JvmOverloads
+    fun setUp(binaryMessenger: BinaryMessenger, api: SignHostApi?, messageChannelSuffix: String = "") {
+      val separatedMessageChannelSuffix = if (messageChannelSuffix.isNotEmpty()) ".$messageChannelSuffix" else ""
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.cpkey.SignHostApi.signMt$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val kidArg = args[0] as String
+            val operationArg = args[1] as DssOperation?
+            val enableMultiSelectionArg = args[2] as Boolean
+            val confirmationSendingModeArg = args[3] as DssConfirmationSendingMode
+            val pinCodeArg = args[4] as String?
+            val silentArg = args[5] as Boolean
+            api.signMt(kidArg, operationArg, enableMultiSelectionArg, confirmationSendingModeArg, pinCodeArg, silentArg) { result: Result<DssSignMtResult> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+    }
+  }
+}
+/** Generated interface from Pigeon that represents a handler of messages from Flutter. */
+interface SigningKeyHostApi {
+  /**
+   * Получение списка ключей подписи.
+   * [checkAllContainers] используется только на Android (на iOS параметр будет проигнорирован).
+   */
+  fun listKeys(checkAllContainers: Boolean, callback: (Result<List<DSSSigningKeyInfo>>) -> Unit)
+
+  companion object {
+    /** The codec used by SigningKeyHostApi. */
+    val codec: MessageCodec<Any?> by lazy {
+      CryptoProDssApiPigeonCodec()
+    }
+    /** Sets up an instance of `SigningKeyHostApi` to handle messages through the `binaryMessenger`. */
+    @JvmOverloads
+    fun setUp(binaryMessenger: BinaryMessenger, api: SigningKeyHostApi?, messageChannelSuffix: String = "") {
+      val separatedMessageChannelSuffix = if (messageChannelSuffix.isNotEmpty()) ".$messageChannelSuffix" else ""
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.cpkey.SigningKeyHostApi.listKeys$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val checkAllContainersArg = args[0] as Boolean
+            api.listKeys(checkAllContainersArg) { result: Result<List<DSSSigningKeyInfo>> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(wrapResult(data))
               }
             }
           }

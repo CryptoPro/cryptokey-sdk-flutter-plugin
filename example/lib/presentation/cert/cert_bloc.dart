@@ -2,11 +2,15 @@ import 'package:cpkey/CpKeyPlugin.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
 
+import '../../navigation/app_routes.dart';
+import '../../navigation/navigation_service.dart';
+
 @injectable
 class CertsBloc extends Bloc<CertsEvent, CertsState> {
   DssUser? activeUser;
+  final NavigationService _navigationService;
 
-  CertsBloc() : super(CertsInitial()) {
+  CertsBloc(this._navigationService) : super(CertsInitial()) {
     on<LoadCerts>((event, emit) async {
       emit(CertsLoading());
       final authList = await CpKeyPlugin.auth.getAuthList();
@@ -21,13 +25,18 @@ class CertsBloc extends Bloc<CertsEvent, CertsState> {
 
     on<DeleteCert>((event, emit) async {
       final request = DeleteCertRequest(
-        cid: event.id,
-        rid: event.id,
+        cid: event.cid,
+        rid: event.rid,
         removeFromToken: false,
         kid: activeUser!.kid!,
         silent: false,
       );
       await CpKeyPlugin.cert.deleteCert(request);
+      add(LoadCerts());
+    });
+
+    on<CreateCert>((event, emit) async {
+      await _navigationService.navigateTo(AppRoutes.create_cert);
       add(LoadCerts());
     });
   }
@@ -37,10 +46,13 @@ abstract class CertsEvent {}
 
 class LoadCerts extends CertsEvent {}
 
-class DeleteCert extends CertsEvent {
-  final String? id;
+class CreateCert extends CertsEvent {}
 
-  DeleteCert(this.id);
+class DeleteCert extends CertsEvent {
+  final String? rid;
+  final String? cid;
+
+  DeleteCert(this.rid, this.cid);
 }
 
 abstract class CertsState {}
